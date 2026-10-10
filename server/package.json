@@ -2,5 +2,9 @@
   "name": "@shiftmark/server",
   "private": true,
   "type": "module",
-  "dependencies": { "@shiftmark/contracts": "workspace:*" }
+  "dependencies": {
+    "@shiftmark/contracts": "workspace:*",
+    "drizzle-orm": "^0.45.1"
+  },
+  "devDependencies": { "drizzle-kit": "^0.31.8" }
 }
