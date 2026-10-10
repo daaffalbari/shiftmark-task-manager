@@ -35,6 +35,41 @@
 .dialogIntro { color: var(--color-text-muted); margin: 8px 0 24px; }
 .help { color: var(--color-text-muted); margin-top: 8px; font-size: 12px; }
 .dialogActions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 28px; }
+.sheet { position: fixed; inset: 0 0 0 auto; margin: 0; width: 440px; max-width: 100%; height: 100dvh; max-height: 100dvh; border-radius: 0; border-width: 0 0 0 1px; padding: 0; overflow-y: auto; }
+.sheetHeader { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 28px; border-bottom: 1px solid var(--color-border); }
+.sheetHeader .taskId { margin-left: 12px; letter-spacing: 0; }
+.sheetHeader h2 { margin-top: 10px; overflow-wrap: anywhere; }
+.sheetHeader > div { min-width: 0; }
+.sheetHeader button { margin: -8px -12px 0 0; }
+.statusSection { padding: 28px; border-bottom: 1px solid var(--color-border); }
+.sectionHeading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.sectionHeading > span { color: var(--color-text-muted); font-size: 12px; }
+.workflow { list-style: none; margin: 28px 0; padding: 0; display: flex; }
+.workflow li { position: relative; flex: 1; text-align: center; color: var(--color-text-muted); font-size: 10px; }
+.workflow li:not(:last-child)::after { content: ''; position: absolute; height: 1px; background: var(--color-border); left: calc(50% + 14px); right: calc(-50% + 14px); top: 13px; }
+.workflow li > span { display: grid; place-items: center; width: 27px; height: 27px; margin: 0 auto 8px; border: 1px solid var(--color-border); border-radius: 50%; background: var(--color-canvas); font-size: 11px; }
+.workflow .reached > span { color: var(--color-primary); background: var(--color-primary-soft); border-color: var(--color-primary); }
+.workflow li[aria-current] { color: var(--color-primary); font-weight: 600; }
+.workflow li[aria-current] > span { color: white; background: var(--color-primary); }
+.workflow svg { width: 14px; height: 14px; }
+.transitionButton { width: 100%; justify-content: space-between; }
+.complete { color: var(--color-primary); display: flex; align-items: center; gap: 8px; }
+.feedback { margin-top: 12px; color: var(--color-primary); font-size: 12px; }
+.history { padding: 28px; }
+.historyIntro { margin: 4px 0 24px; color: var(--color-text-muted); font-size: 12px; }
+.noHistory { color: var(--color-text-muted); padding: 16px 0; }
+.noHistory p:last-child { font-size: 12px; margin-top: 4px; }
+.timeline { list-style: none; margin: 0 0 0 4px; padding: 0 0 0 24px; border-left: 1px solid var(--color-border); }
+.timeline li { position: relative; padding: 0 0 24px; font-size: 13px; }
+.timeline li::before { content: ''; position: absolute; width: 7px; height: 7px; border-radius: 50%; background: var(--color-primary); top: 7px; left: -28px; outline: 4px solid white; }
+.timeline li:last-child { padding-bottom: 0; }
+.timeline strong { font-weight: 500; }
+.timeline time { display: block; color: var(--color-text-muted); font-size: 11px; margin-top: 6px; }
+@media (max-width: 767px) {
+  .sheet { width: 100%; border: 0; }
+  .sheetHeader, .statusSection, .history { padding: 24px; }
+  .transitionButton { position: sticky; bottom: 16px; z-index: 1; }
+}
 @media (max-width: 1199px) {
   .listHeading, .row { grid-template-columns: minmax(120px, 1fr) 112px 160px 44px; gap: 8px; padding: 0 16px; }
   .detailsButton span { display: none; }
