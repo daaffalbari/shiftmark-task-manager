@@ -76,6 +76,31 @@ try {
     await john.getByLabel('Password', { exact: true }).press('Enter');
     await visible(john, 'Invalid email or password.');
     await login(john, 'john@example.com');
+    if (width === 1440) {
+      const sidebar = john.locator('.sidebar');
+      const main = john.getByRole('main');
+      assert.equal((await main.boundingBox())?.x, 208);
+      await john.getByRole('button', { name: 'Hide sidebar', exact: true }).press('Enter');
+      await sidebar.waitFor({ state: 'hidden' });
+      const showSidebar = john.getByRole('button', { name: 'Show sidebar', exact: true });
+      assert.equal(await showSidebar.getAttribute('aria-expanded'), 'false');
+      assert(await showSidebar.evaluate((element) => element === document.activeElement), 'Sidebar toggle must retain keyboard focus');
+      assert.equal((await main.boundingBox())?.x, 0, 'Closing the sidebar must release its width');
+      await noOverflow(john);
+      await john.screenshot({ path: join(output, 'sidebar-closed-' + width + '.png'), fullPage: true });
+      for (const checkWidth of [390, 768, 1024]) {
+        await john.setViewportSize({ width: checkWidth, height: 900 });
+        assert.equal(await sidebar.isVisible(), checkWidth < 1024, 'Mobile navigation must remain available after closing the desktop sidebar');
+        assert.equal(await showSidebar.isVisible(), checkWidth >= 1024);
+        await noOverflow(john);
+      }
+      await john.setViewportSize({ width, height: 900 });
+      await showSidebar.press('Space');
+      await sidebar.waitFor({ state: 'visible' });
+      assert.equal((await main.boundingBox())?.x, 208);
+      assert.equal(await john.getByRole('button', { name: 'Hide sidebar', exact: true }).getAttribute('aria-expanded'), 'true');
+      await john.screenshot({ path: join(output, 'sidebar-open-' + width + '.png'), fullPage: true });
+    }
     if (width === 390) {
       await john.getByRole('button', { name: 'Account', exact: true }).click();
       await visible(john, 'john@example.com');
@@ -154,6 +179,7 @@ try {
     await john.getByRole('button', { name: 'Refresh task', exact: true }).click();
     await visible(john, 'This task is complete.');
     const johnActivity = john.getByRole('list', { name: 'Task activity', exact: true });
+    await johnActivity.waitFor();
     assert.equal(await johnActivity.getByRole('listitem').count(), 5);
     assert((await johnActivity.textContent())?.includes('Jane Doe moved this task from In progress to Done.'));
     const detail = john.getByRole('dialog', { name: revised, exact: true });
@@ -202,7 +228,7 @@ try {
     await john.getByRole('button', { name: 'Sign out', exact: true }).click();
     await john.getByRole('heading', { name: 'Sign in to shiftmark' }).waitFor();
     await johnContext.close(); await janeContext.close();
-    console.log('PASS ' + width + 'px: shared access, assignment, before/after edits, stale draft, workflow, deletion history, expiry, keyboard and overflow');
+    console.log('PASS ' + width + 'px: sidebar, shared access, assignment, before/after edits, stale draft, workflow, deletion history, expiry, keyboard and overflow');
   }
   assert.deepEqual(errors, [], 'Browser must not raise JavaScript errors');
   console.log('Screenshots: ' + output);
