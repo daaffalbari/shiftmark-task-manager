@@ -1,0 +1,19 @@
+{
+  "name": "@shiftmark/client",
+  "private": true,
+  "type": "module",
+  "scripts": { "dev": "vite --host 127.0.0.1", "build": "vite build" },
+  "dependencies": {
+    "@shiftmark/contracts": "workspace:*",
+    "react": "^19.2.0", "react-dom": "^19.2.0", "react-router-dom": "^7.9.4",
+    "lucide-react": "^0.468.0",
+    "@fontsource/ibm-plex-sans": "^5.2.7",
+    "@fontsource/ibm-plex-mono": "^5.2.7"
+  },
+  "devDependencies": {
+    "vite": "^7.1.10", "@vitejs/plugin-react": "^5.0.4",
+    "@types/react": "^19.2.0", "@types/react-dom": "^19.2.0",
+    "@testing-library/react": "^16.3.0", "@testing-library/jest-dom": "^6.9.1",
+    "@happy-dom/global-registrator": "^20.0.8"
+  }
+}
