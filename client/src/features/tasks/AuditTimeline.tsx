@@ -1,4 +1,5 @@
 import type { ApiAuditLog } from '@shiftmark/contracts';
+import { ArrowRight, Pencil, Plus, Trash2 } from 'lucide-react';
 import { formatTimestamp, statusLabels } from './status';
 import styles from './tasks.module.css';
 
@@ -8,6 +9,7 @@ export function AuditTimeline({ logs }: { logs: ApiAuditLog[] }) {
     {logs.map((log) => {
       const event = log.event;
       return <li key={log.id}>
+        <span className={styles.eventMarker + (event.type === 'deleted' ? ' ' + styles.deletedMarker : '')} aria-hidden="true">{event.type === 'created' ? <Plus /> : event.type === 'updated' ? <Pencil /> : event.type === 'status_changed' ? <ArrowRight /> : <Trash2 />}</span>
         {event.type === 'created' && <><p><strong>{log.actorName}</strong> created this task.</p><div className={styles.creationSnapshot}><p>Title: {event.title}</p>{event.description && <p>Description: {event.description}</p>}<p>Assignee: {event.assignee?.name ?? 'Unassigned'} · Status: To do</p></div></>}
         {event.type === 'status_changed' && <p><strong>{log.actorName}</strong> moved this task from <strong>{statusLabels[event.fromStatus]}</strong> to <strong>{statusLabels[event.toStatus]}</strong>.</p>}
         {event.type === 'updated' && <><p><strong>{log.actorName}</strong> updated this task.</p><div className={styles.fieldChanges}>{event.changes.map((change) => <div key={change.field}>

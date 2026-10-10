@@ -1,7 +1,7 @@
 # shiftmark — Internal Team Task Manager
 ## Product & UI Design Specification
 
-**Status:** Implemented shared-team revision with predefined actors
+**Status:** Implemented shared-team revision with predefined actors and workspace UI polish
 **Date:** 2026-10-11
 **Audience:** Full-stack engineer / code-generation agent  
 **Companion plan:** [TEAM-WORKSPACE-PLAN.md](TEAM-WORKSPACE-PLAN.md). This revision supersedes the personal ownership and session-actor assumptions in the original mini-task-manager plan.
@@ -72,7 +72,7 @@ Palette: **warm neutral + evergreen ink**. These are *custom design choices* che
 | CSS token | Hex | Application |
 |---|---|---|
 | `--color-canvas` | `#F7F8F5` | Application background |
-| `--color-sidebar` | `#F5F7F4` | Left navigation surface |
+| `--color-sidebar` | `#F5F7F4` | Team workspace identity surface |
 | `--color-surface` | `#FFFFFF` | Task list, dialogs, details |
 | `--color-surface-muted` | `#F0F3EF` | Subtle hover, small sections |
 | `--color-border` | `#DDE5DE` | Dividers and quiet outlines |
@@ -131,10 +131,10 @@ Do not communicate status by color alone: display the written status label on ev
 
 - **Primary type:** `IBM Plex Sans`, with `system-ui, sans-serif` fallback. Functional, readable, not oversized. Do not load many font weights: 400, 500, 600.
 - **Data/metadata:** `IBM Plex Mono`, with `ui-monospace, monospace` fallback, sparingly for `#task-id` and exact timestamps. Avoid monospace for paragraphs.
-- **Scale:** page heading `28px/36px, 600`; detail title `22px/30px, 600`; section heading `16px/24px, 600`; body `14px/22px`; secondary/meta `12px/18px`; small button `13px/20px, 600`.
-- **Spacing:** 4px base; page padding 36–40px desktop, 20px tablet, 16px mobile. Section gaps 24–32px; rows 64–72px.
-- **Shape:** border radius `10px` controls/cards, `14px` dialogs/sheets, full pill for status chips. Avoid round-24 floating containers everywhere.
-- **Borders:** 1px neutral dividers. A single subtle shadow on floating dialogs only. No glassmorphism, blurred glowing edges, gratuitous gradients, or large colored shadows.
+- **Scale:** page heading `34px/42px, 600` desktop and `28px/36px` mobile; detail title `22px/30px, 600`; section heading `16px/24px, 600`; body `14px/22px`; secondary/meta `12px/18px`; status filter counts `24px/28px, 600`.
+- **Spacing:** 4px base; page horizontal padding 40px desktop, 20px tablet, 16px mobile. Section gaps 24–32px; desktop task rows 88px.
+- **Shape:** border radius `10px` controls, `12px` task/filter surfaces, `14px` dialogs, full pill for status chips. Avoid round-24 floating containers everywhere.
+- **Borders:** 1px neutral dividers. Subtle depth on floating dialogs and primary buttons. No glassmorphism, blurred glowing edges, gratuitous gradients, or large colored shadows.
 - **Icons:** optional `lucide-react`, 16–18px, consistent 1.75–2px stroke. Text labels remain visible; do not make icon-only navigation.
 - **Motion:** 120–180ms opacity/transform transitions for sheets and micro-interactions; disable on `prefers-reduced-motion: reduce`. No spring/bounce effect.
 
@@ -153,13 +153,14 @@ No `Dashboard`, `Analytics`, `Team`, `Calendar`, `Settings`, or disabled placeho
 
 ### 7.1 Desktop workspace (≥ 1024px)
 
-- Fixed **208px sidebar** with `shiftmark` wordmark and `Team tasks` / `Deleted tasks` navigation. A keyboard-accessible button hides it and a top-left button reopens it.
-- An **Acting as** dropdown remains above the main content in both sidebar states, with helper text explaining its use for change attribution.
+- Fixed **208px white sidebar** with `shiftmark` wordmark, an Internal team identity block, and `Team tasks` / `Deleted tasks` navigation. The footer shows initials and a member count from the real directory. A keyboard-accessible button hides it and a top-left button reopens it.
+- A breadcrumb and distinct **Acting as** control sit above the main content. The dropdown includes the selected actor's initials and helper text explaining change attribution, and remains available in both sidebar states.
 - Main background `--color-canvas`; max content width **1100px**, content padding 40px.
 - Header: small eyebrow `INTERNAL TEAM`; prominent `Team tasks`; one-line supporting count; single primary `+ New task` button right aligned.
-- Status filter strip: `All`, `To do`, `Pending`, `In progress`, `Done`, each with a real count. Counts are derived from active team tasks, not mock metrics.
+- Status filter strip: `All`, `To do`, `Pending`, `In progress`, `Done` in a single white surface, with larger real counts, semantic dots, and an evergreen selected state. Each segment filters the list; counts are derived from the current task view.
+- A Task overview heading (Preserved tasks in the deleted view), real task count, and Refresh control introduce the table. A short history hint below the table explains the details action.
 - List in **one white surface** with quiet 1px outer border; table-like rows with `Task / Assignee / Status / Last updated by / Open` headings; do not create a card for each task.
-- Row: task name (single line with ellipsis), subtle `#ID` and creator, assignee initials/name, status chip, last editor and absolute timestamp, accessible `View details` button. Hover changes background subtly; focus is clearly outlined.
+- Row: document marker, task name (single line with ellipsis), subtle `#ID` and creator, assignee initials/name, status chip, last editor and absolute timestamp, accessible `View details` button. Hover and keyboard focus subtly highlight the row; focus is clearly outlined.
 - Task detail opens in a **420–440px right modal sheet**, visually anchored to the right and slightly shadowed. The background list remains visible but inert while the native modal `<dialog>` is open.
 
 The list keeps task, responsibility, current status, and last editor aligned in one surface. On mobile the same data stacks within each row.
@@ -175,7 +176,7 @@ The list keeps task, responsibility, current status, and last editor aligned in 
 
 **Audit empty state:** `No recorded activity. New changes will appear here.` Do not synthesize missing historical events.
 
-**Audit timeline:** vertical hairline and dot markers, oldest first. Preserve multiline field values and wrap long content. Use local absolute times with `Intl.DateTimeFormat`; preserve ISO UTC timestamps in the API.
+**Audit timeline:** vertical hairline with distinct creation, edit, status, and deletion icon markers, oldest first. Initial fields and exact Before/After values sit in bordered blocks. Preserve multiline field values and wrap long content. Use local absolute times with `Intl.DateTimeFormat`; preserve ISO UTC timestamps in the API. Task metadata has a quiet inset surface, and the current-status section uses the warm canvas background and a clearly marked workflow step.
 
 ### 7.3 Actor selection
 
