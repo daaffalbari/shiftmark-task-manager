@@ -1,8 +1,11 @@
 import { Router } from 'express';
-import { createTaskSchema, taskViewSchema } from '@shiftmark/contracts';
+import { changeStatusSchema, createTaskSchema, taskViewSchema } from '@shiftmark/contracts';
+import { z } from 'zod';
 import type { AppContext } from '../../app';
 import { requireAuth } from '../../middleware/require-auth';
-import { createOwnedTask, listOwnedTasks } from './task.service';
+import { changeOwnedTaskStatus, createOwnedTask, listOwnedTasks } from './task.service';
+
+const taskIdSchema = z.coerce.number().int().positive().max(Number.MAX_SAFE_INTEGER);
 
 export function taskRoutes(ctx: AppContext) {
   const router = Router();
@@ -14,6 +17,11 @@ export function taskRoutes(ctx: AppContext) {
   router.post('/', (req, res) => {
     const { title } = createTaskSchema.parse(req.body);
     res.status(201).json({ task: createOwnedTask(ctx.db, res.locals.user.id, title, ctx.now()) });
+  });
+  router.patch('/:id/status', (req, res) => {
+    const id = taskIdSchema.parse(req.params.id);
+    const { status } = changeStatusSchema.parse(req.body);
+    res.json(changeOwnedTaskStatus(ctx.db, res.locals.user.id, id, status, ctx.now()));
   });
   return router;
 }
