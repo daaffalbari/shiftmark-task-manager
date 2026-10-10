@@ -4,7 +4,15 @@
   "type": "module",
   "dependencies": {
     "@shiftmark/contracts": "workspace:*",
-    "drizzle-orm": "^0.45.1"
+    "drizzle-orm": "^0.45.1",
+    "express": "^5.1.0",
+    "zod": "^4.1.12"
   },
-  "devDependencies": { "drizzle-kit": "^0.31.8" }
+  "scripts": { "dev": "bun --watch src/index.ts", "build": "bun build src/index.ts --target=bun --outdir dist" },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.8",
+    "@types/express": "^5.0.3",
+    "supertest": "^7.1.4",
+    "@types/supertest": "^6.0.3"
+  }
 }
