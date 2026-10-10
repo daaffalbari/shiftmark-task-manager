@@ -29,6 +29,12 @@
 .empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 72px 24px; text-align: center; background: white; border: 1px solid var(--color-border); border-radius: 10px; }
 .empty > svg { width: 28px; height: 28px; color: var(--color-primary); margin-bottom: 4px; }
 .empty > p { color: var(--color-text-muted); }
+.announcement:empty { display: none; }
+.announcement:not(:empty) { margin-bottom: 16px; color: var(--color-primary); }
+.createDialog { width: calc(100% - 32px); max-width: 420px; }
+.dialogIntro { color: var(--color-text-muted); margin: 8px 0 24px; }
+.help { color: var(--color-text-muted); margin-top: 8px; font-size: 12px; }
+.dialogActions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 28px; }
 @media (max-width: 1199px) {
   .listHeading, .row { grid-template-columns: minmax(120px, 1fr) 112px 160px 44px; gap: 8px; padding: 0 16px; }
   .detailsButton span { display: none; }
