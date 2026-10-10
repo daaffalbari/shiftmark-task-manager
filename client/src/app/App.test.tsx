@@ -16,7 +16,7 @@ test('opens the shared workspace without login and shows the predefined actor', 
   mockFetch((path) => { paths.push(path); return Response.json(path === '/api/members' ? { members: sampleMembers } : { tasks: [sampleTask] }); });
   openWorkspace();
   expect(await screen.findByRole('heading', { name: 'Team tasks' })).toBeVisible();
-  expect(screen.getByRole('combobox', { name: 'Acting as' })).toHaveValue('2');
+  expect(screen.getByRole('combobox', { name: 'Acting as' })).toHaveTextContent('Jane Doe');
   expect(paths.some((path) => path.includes('/auth/'))).toBe(false);
 });
 
@@ -29,7 +29,8 @@ test('switching actor sends the selected identity independently of the assignee'
   });
   openWorkspace();
   await screen.findByText('Prepare invoice');
-  fireEvent.change(screen.getByRole('combobox', { name: 'Acting as' }), { target: { value: '1' } });
+  fireEvent.click(screen.getByRole('combobox', { name: 'Acting as' }));
+  fireEvent.click(screen.getByRole('option', { name: 'John Doe' }));
   fireEvent.click(screen.getByRole('button', { name: 'New task' }));
   expect(screen.getByText('This task creation will be recorded as John Doe.')).toBeVisible();
   fireEvent.change(screen.getByLabelText('Task title'), { target: { value: 'Team invoice' } });
@@ -43,11 +44,12 @@ test('switching actor sends the selected identity independently of the assignee'
 test('actor selection survives navigation and remains available with the sidebar closed', async () => {
   mockFetch((path) => Response.json(path === '/api/members' ? { members: sampleMembers } : { tasks: [] }));
   openWorkspace();
-  fireEvent.change(await screen.findByRole('combobox', { name: 'Acting as' }), { target: { value: '1' } });
+  fireEvent.click(await screen.findByRole('combobox', { name: 'Acting as' }));
+  fireEvent.click(screen.getByRole('option', { name: 'John Doe' }));
   fireEvent.click(screen.getByRole('link', { name: 'Deleted tasks' }));
   await screen.findByRole('heading', { name: 'Deleted tasks' });
   fireEvent.click(screen.getByRole('button', { name: 'Hide sidebar' }));
-  expect(screen.getByRole('combobox', { name: 'Acting as' })).toHaveValue('1');
+  expect(screen.getByRole('combobox', { name: 'Acting as' })).toHaveTextContent('John Doe');
 });
 
 test('actor loading can be retried before allowing changes', async () => {

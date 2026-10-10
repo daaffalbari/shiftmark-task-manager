@@ -180,7 +180,9 @@ The list keeps task, responsibility, current status, and last editor aligned in 
 
 ### 7.3 Actor selection
 
-Open the task workspace directly. A labeled native **Acting as** dropdown uses the two predefined members returned by `/api/members`; initially select the first member in the directory. Display the selected name in create/edit/delete dialogs and beside status actions. Changing the actor affects subsequent mutation requests and never rewrites history. Loading failures offer Retry before allowing changes. There is no login form, password, or account/logout menu.
+Open the task workspace directly. A styled **Acting as** picker uses the two predefined members returned by `/api/members`; initially select the first member in the directory. Its anchored listbox shows member initials and a checkmark for the selected actor. Arrow keys, Home/End, and typing names browse options; Enter/Space confirm; Tab confirms and moves focus; Escape or clicking outside dismisses without changing the actor. DOM focus stays on the trigger while browsing, using `aria-activedescendant` as described in the [WAI select-only combobox pattern](https://www.w3.org/WAI/ARIA/apg/patterns/combobox/examples/combobox-select-only/).
+
+Display the selected name in create/edit/delete dialogs and beside status actions. Changing the actor affects subsequent mutation requests and never rewrites history. Loading failures offer Retry before allowing changes. There is no login form, password, or account/logout menu.
 
 ### 7.4 Create and edit task
 

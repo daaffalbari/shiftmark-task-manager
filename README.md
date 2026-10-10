@@ -61,7 +61,7 @@ Errors use `{error:{code,message}}`: 400 validation/unknown actor, 403 origin, 4
 
 ## Verification
 
-Verified on 11 October 2026: **53 tests passed**, strict typecheck and production build passed, and the complete actor-dropdown browser check passed at **1440px and 390px** in headless Brave. Desktop/mobile screenshots were visually reviewed; list overflow was also checked at 320/768/1024px.
+Verified on 11 October 2026: **57 tests passed**, strict typecheck and production build passed, and the complete actor-picker browser check passed at **1440px and 390px** in headless Brave. The styled picker was checked for keyboard selection, typing names, Escape, outside dismissal, mobile touch, and actor attribution. Desktop/mobile screenshots were visually reviewed; list overflow was also checked at 320/768/1024px.
 
 Tests cover every status pair, strict inputs, missing/unknown actors, actor switching, shared access, assignment, exact field diffs, stale edits, no-op/duplicate requests, rollback for every mutation, legacy migration, immutable history, timestamp ties, soft deletion, empty/error states, and React dialog flows.
 

@@ -43,7 +43,8 @@ async function ready() {
 async function chooseActor(page: Page, name: string) {
   const selector = page.getByRole('combobox', { name: 'Acting as', exact: true });
   await selector.waitFor();
-  await selector.selectOption({ label: name });
+  await selector.click();
+  await page.getByRole('listbox', { name: 'Acting as', exact: true }).getByRole('option', { name, exact: true }).click();
   await page.getByRole('heading', { name: 'Team tasks', exact: true }).waitFor();
 }
 async function noOverflow(page: Page) {
@@ -57,7 +58,7 @@ try {
   await ready();
   browser = await chromium.launch({ executablePath: process.argv[2] || undefined, headless: true });
   for (const width of [1440, 390]) {
-    const options = { viewport: { width, height: 900 }, timezoneId: 'Asia/Jakarta', reducedMotion: 'reduce' as const };
+    const options = { viewport: { width, height: 900 }, timezoneId: 'Asia/Jakarta', reducedMotion: 'reduce' as const, hasTouch: width === 390 };
     const johnContext = await browser.newContext(options);
     const janeContext = await browser.newContext(options);
     const john = await johnContext.newPage();
@@ -67,6 +68,43 @@ try {
     const revised = 'Approved invoice ' + width;
     await john.goto(origin + '/tasks');
     await chooseActor(john, 'John Doe');
+    const actorPicker = john.getByRole('combobox', { name: 'Acting as', exact: true });
+    const actorMenu = john.getByRole('listbox', { name: 'Acting as', exact: true });
+    await actorPicker.press('ArrowUp');
+    await actorMenu.waitFor();
+    assert.equal(await actorPicker.getAttribute('aria-activedescendant'), await actorMenu.getByRole('option', { name: 'Jane Doe', exact: true }).getAttribute('id'));
+    await actorPicker.press('Escape');
+    assert((await actorPicker.textContent())?.includes('John Doe'), 'Escape must retain the current actor');
+    assert(await actorPicker.evaluate((element) => element === document.activeElement));
+    await actorPicker.press('Space');
+    await actorMenu.waitFor();
+    await actorPicker.press('Home');
+    await actorPicker.press('Enter');
+    assert((await actorPicker.textContent())?.includes('Jane Doe'), 'Enter must confirm the highlighted actor');
+    await actorPicker.press('End');
+    await actorPicker.press('Tab');
+    assert((await actorPicker.textContent())?.includes('John Doe'), 'Tab must confirm and leave the picker');
+    assert(await actorPicker.evaluate((element) => element !== document.activeElement));
+    await actorPicker.press('j');
+    await actorPicker.press('a');
+    await actorPicker.press('n');
+    assert.equal(await actorPicker.getAttribute('aria-activedescendant'), await actorMenu.getByRole('option', { name: 'Jane Doe', exact: true }).getAttribute('id'));
+    await actorPicker.press('Escape');
+    await actorPicker.click();
+    assert.equal(await actorMenu.getByRole('option', { name: 'John Doe', exact: true }).getAttribute('aria-selected'), 'true');
+    const menuBounds = await actorMenu.boundingBox();
+    assert(menuBounds && menuBounds.x >= 0 && menuBounds.x + menuBounds.width <= width, 'Actor options must fit the viewport');
+    assert((await actorMenu.getByRole('option', { name: 'John Doe', exact: true }).boundingBox())!.height >= 44);
+    await john.screenshot({ path: join(output, 'actor-menu-' + width + '.png') });
+    await john.getByRole('heading', { name: 'Task overview', exact: true }).click();
+    await actorMenu.waitFor({ state: 'hidden' });
+    assert((await actorPicker.textContent())?.includes('John Doe'), 'Clicking outside must retain the actor');
+    if (width === 390) {
+      await actorPicker.tap();
+      await actorMenu.getByRole('option', { name: 'Jane Doe', exact: true }).tap();
+      assert((await actorPicker.textContent())?.includes('Jane Doe'), 'Touch must select an actor');
+      await chooseActor(john, 'John Doe');
+    }
     await noOverflow(john);
     assert.equal(await john.getByLabel('Password', { exact: true }).count(), 0, 'The assessment workspace must open without login');
     await john.screenshot({ path: join(output, 'actor-workspace-' + width + '.png'), fullPage: true });
@@ -209,7 +247,7 @@ try {
     await john.getByRole('link', { name: 'Team tasks', exact: true }).click();
     await chooseActor(john, 'Jane Doe');
     await john.getByRole('link', { name: 'Deleted tasks', exact: true }).click();
-    assert.equal(await john.getByRole('combobox', { name: 'Acting as', exact: true }).inputValue(), '2', 'Actor selection must survive navigation');
+    assert((await john.getByRole('combobox', { name: 'Acting as', exact: true }).textContent())?.includes('Jane Doe'), 'Actor selection must survive navigation');
     await johnOpener.click();
     await johnActivity.waitFor();
     assert.equal(await johnActivity.getByRole('listitem').count(), 6, 'Switching actor must not change recorded history');
