@@ -1,7 +1,7 @@
-import { and, desc, eq, isNotNull, isNull } from 'drizzle-orm';
-import type { ApiTask, TaskStatus, TaskView } from '@shiftmark/contracts';
+import { and, asc, desc, eq, isNotNull, isNull } from 'drizzle-orm';
+import type { ApiAuditLog, ApiTask, TaskStatus, TaskView } from '@shiftmark/contracts';
 import type { Db } from '../../db/client';
-import { auditLogs, tasks } from '../../db/schema';
+import { auditLogs, tasks, users } from '../../db/schema';
 import { ApiFailure } from '../../domain/api-error';
 import { evaluateTransition } from '../../domain/task-status';
 
@@ -36,4 +36,21 @@ export function changeOwnedTaskStatus(db: Db, ownerId: number, taskId: number, r
     }).run();
     return { task: toApiTask(updated), changed: true };
   }, { behavior: 'immediate' });
+}
+
+export function softDeleteOwnedTask(db: Db, ownerId: number, taskId: number, now: Date): void {
+  const result = db.update(tasks).set({ deletedAt: now })
+    .where(and(eq(tasks.id, taskId), eq(tasks.ownerId, ownerId), isNull(tasks.deletedAt))).returning().get();
+  if (!result) throw new ApiFailure(404, 'TASK_NOT_FOUND', 'Task not found.');
+}
+
+export function getOwnedTaskAuditLogs(db: Db, ownerId: number, taskId: number): ApiAuditLog[] {
+  const task = db.select({ id: tasks.id }).from(tasks).where(and(eq(tasks.id, taskId), eq(tasks.ownerId, ownerId))).get();
+  if (!task) throw new ApiFailure(404, 'TASK_NOT_FOUND', 'Task not found.');
+  return db.select({
+    id: auditLogs.id, taskId: auditLogs.taskId, actorId: auditLogs.actorId, actorName: users.name,
+    fromStatus: auditLogs.fromStatus, toStatus: auditLogs.toStatus, createdAt: auditLogs.createdAt,
+  }).from(auditLogs).innerJoin(users, eq(auditLogs.actorId, users.id))
+    .where(eq(auditLogs.taskId, taskId)).orderBy(asc(auditLogs.createdAt), asc(auditLogs.id)).all()
+    .map((log) => ({ ...log, createdAt: log.createdAt.toISOString() }));
 }

@@ -3,7 +3,7 @@ import { changeStatusSchema, createTaskSchema, taskViewSchema } from '@shiftmark
 import { z } from 'zod';
 import type { AppContext } from '../../app';
 import { requireAuth } from '../../middleware/require-auth';
-import { changeOwnedTaskStatus, createOwnedTask, listOwnedTasks } from './task.service';
+import { changeOwnedTaskStatus, createOwnedTask, getOwnedTaskAuditLogs, listOwnedTasks, softDeleteOwnedTask } from './task.service';
 
 const taskIdSchema = z.coerce.number().int().positive().max(Number.MAX_SAFE_INTEGER);
 
@@ -22,6 +22,13 @@ export function taskRoutes(ctx: AppContext) {
     const id = taskIdSchema.parse(req.params.id);
     const { status } = changeStatusSchema.parse(req.body);
     res.json(changeOwnedTaskStatus(ctx.db, res.locals.user.id, id, status, ctx.now()));
+  });
+  router.get('/:id/audit-logs', (req, res) => {
+    res.json({ logs: getOwnedTaskAuditLogs(ctx.db, res.locals.user.id, taskIdSchema.parse(req.params.id)) });
+  });
+  router.delete('/:id', (req, res) => {
+    softDeleteOwnedTask(ctx.db, res.locals.user.id, taskIdSchema.parse(req.params.id), ctx.now());
+    res.sendStatus(204);
   });
   return router;
 }
