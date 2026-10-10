@@ -5,6 +5,7 @@ import { ApiRequestError } from '../api/http';
 import { AppShell } from '../components/AppShell';
 import { getMe } from '../features/auth/auth.api';
 import { LoginPage } from '../features/auth/LoginPage';
+import { MyTasksPage } from '../features/tasks/MyTasksPage';
 
 export function App() {
   const [user, setUser] = useState<ApiUser | null>(null);
@@ -31,7 +32,7 @@ export function App() {
   const signedOut = () => { setUser(null); setMessage(''); navigate('/login', { replace: true }); };
   return <Routes>
     <Route path="/login" element={user ? <Navigate to="/tasks" replace /> : <LoginPage message={message} onSignedIn={(current) => { setUser(current); setMessage(''); navigate('/tasks', { replace: true }); }} />} />
-    <Route path="/tasks" element={user ? <AppShell key={user.id} user={user} onSignedOut={signedOut}><h1>My tasks</h1></AppShell> : <Navigate to="/login" replace />} />
+    <Route path="/tasks" element={user ? <AppShell key={user.id} user={user} onSignedOut={signedOut}><MyTasksPage /></AppShell> : <Navigate to="/login" replace />} />
     <Route path="*" element={<Navigate to={user ? '/tasks' : '/login'} replace />} />
   </Routes>;
 }
