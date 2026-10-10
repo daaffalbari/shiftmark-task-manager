@@ -9,15 +9,15 @@ const originalFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = originalFetch; });
 
 test('deleted view is read-only and preserves original history and deletion time', async () => {
-  mockFetch((path) => Response.json(path.includes('audit-logs') ? { logs: [sampleLog] } : { tasks: [{ ...sampleTask, deletedAt: sampleTask.updatedAt }] }));
+  mockFetch((path) => Response.json(path.includes('audit-logs') ? { logs: [sampleLog] } : path === '/api/tasks/104' ? { task: { ...sampleTask, deletedAt: sampleTask.updatedAt } } : { tasks: [{ ...sampleTask, deletedAt: sampleTask.updatedAt }] }));
   render(<MyTasksPage view="deleted" />);
   expect(screen.getByRole('heading', { name: 'Deleted tasks' })).toBeVisible();
   expect(screen.queryByRole('button', { name: 'New task' })).toBeNull();
   fireEvent.click(await screen.findByRole('button', { name: 'View details for Prepare invoice' }));
   const sheet = screen.getByRole('dialog');
-  expect(await within(sheet).findByText(/John Doe moved/)).toBeVisible();
+  expect(await within(sheet).findByRole('list', { name: 'Task activity' })).toHaveTextContent('John Doe moved this task');
   expect(within(sheet).getByText(/Deleted on/)).toBeVisible();
-  expect(within(sheet).queryByRole('button', { name: /Move to|Mark as|Delete task/ })).toBeNull();
+  expect(within(sheet).queryByRole('button', { name: /Move to|Mark as|Delete task|Edit details/ })).toBeNull();
 });
 
 test('workspace has functional active/deleted navigation and account/logout', async () => {
@@ -25,8 +25,8 @@ test('workspace has functional active/deleted navigation and account/logout', as
   render(<MemoryRouter initialEntries={['/tasks']}><App /></MemoryRouter>);
   fireEvent.click(await screen.findByRole('link', { name: 'Deleted tasks' }));
   expect(await screen.findByRole('heading', { name: 'Deleted tasks' })).toBeVisible();
-  fireEvent.click(screen.getByRole('link', { name: 'My tasks' }));
-  expect(await screen.findByRole('heading', { name: 'My tasks' })).toBeVisible();
+  fireEvent.click(screen.getByRole('link', { name: 'Team tasks' }));
+  expect(await screen.findByRole('heading', { name: 'Team tasks' })).toBeVisible();
   expect(screen.getByRole('button', { name: 'Sign out' })).toBeVisible();
   expect(screen.getByText('john@example.com')).toBeVisible();
 });

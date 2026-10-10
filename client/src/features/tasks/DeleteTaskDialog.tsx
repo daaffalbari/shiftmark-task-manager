@@ -17,7 +17,7 @@ export function DeleteTaskDialog({ task, onCancel, onConfirm }: { task: ApiTask 
   }
   return <dialog ref={dialog} className={styles.createDialog} aria-labelledby="delete-title" aria-describedby="delete-description" onCancel={(event) => { event.preventDefault(); if (!busy) onCancel(); }}>
     <h2 id="delete-title" className={styles.deleteTitle}>Delete “{task?.title}”?</h2>
-    <p id="delete-description" className={styles.dialogIntro}>The task will leave My tasks. Its status history will be preserved in Deleted tasks.</p>
+    <p id="delete-description" className={styles.dialogIntro}>The task will leave Team tasks for everyone. Its full activity history will be preserved in Deleted tasks.</p>
     {error && <p role="alert" className="error">{error}</p>}
     <div className={styles.dialogActions}><button ref={cancel} onClick={onCancel} disabled={busy}>Cancel</button><button className="danger" disabled={busy} onClick={confirm}>{busy ? 'Deleting…' : 'Delete task'}</button></div>
   </dialog>;

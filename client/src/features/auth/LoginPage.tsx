@@ -23,7 +23,7 @@ export function LoginPage({ onSignedIn, message }: { onSignedIn: (user: ApiUser)
   return <main className="login-page">
     <div className="login-content">
       <div className="brand"><img src="/logo.svg" alt="shiftmark" width="1140" height="212" /></div>
-      <div className="login-heading"><p className="eyebrow">YOUR PRIVATE WORKSPACE</p><h1>Sign in to shiftmark</h1><p>Pick up where you left off.</p></div>
+      <div className="login-heading"><p className="eyebrow">YOUR TEAM WORKSPACE</p><h1>Sign in to shiftmark</h1><p>Shared tasks, with every change accounted for.</p></div>
       {message && <p role="status" className="notice">{message}</p>}
       <form onSubmit={submit}>
         <label htmlFor="email">Email</label>
@@ -36,7 +36,7 @@ export function LoginPage({ onSignedIn, message }: { onSignedIn: (user: ApiUser)
         {error && <p role="alert" className="error">{error}</p>}
         <button className="primary login-submit" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
       </form>
-      <p className="login-footer">Your work. A clear path. Every change accounted for.</p>
+      <p className="login-footer">Your team. A clear path. A shared record.</p>
     </div>
   </main>;
 }
