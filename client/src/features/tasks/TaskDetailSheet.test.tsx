@@ -59,3 +59,24 @@ test('409 refreshes server truth with non-destructive feedback', async () => {
   expect(await screen.findByText('This task is complete.')).toBeVisible();
   expect(screen.getByRole('status')).toHaveTextContent('Status changed elsewhere.');
 });
+
+test('delete requires confirmation, cancel retains task, confirm removes the active row', async () => {
+  let deleted = false;
+  mockFetch((path, init) => {
+    if (init?.method === 'DELETE') { deleted = true; return new Response(null, { status: 204 }); }
+    return Response.json(path.includes('audit-logs') ? { logs: [sampleLog] } : { tasks: deleted ? [] : [sampleTask] });
+  });
+  render(<MyTasksPage />);
+  fireEvent.click(await screen.findByRole('button', { name: 'View details for Prepare invoice' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Delete task' }));
+  let confirm = screen.getByRole('dialog', { name: 'Delete “Prepare invoice”?' });
+  expect(within(confirm).getByText(/status history will be preserved/)).toBeVisible();
+  fireEvent.click(within(confirm).getByRole('button', { name: 'Cancel' }));
+  expect(deleted).toBe(false);
+  fireEvent.click(screen.getByRole('button', { name: 'Delete task' }));
+  confirm = screen.getByRole('dialog', { name: 'Delete “Prepare invoice”?' });
+  fireEvent.click(within(confirm).getByRole('button', { name: 'Delete task' }));
+  expect(await screen.findByText('Nothing on your list yet.')).toBeVisible();
+  expect(deleted).toBe(true);
+  expect(screen.queryByRole('button', { name: 'View details for Prepare invoice' })).toBeNull();
+});

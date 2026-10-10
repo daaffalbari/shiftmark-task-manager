@@ -46,6 +46,7 @@ input { width: 100%; min-width: 0; height: 46px; padding: 10px 12px; border: 1px
 .nav-link:hover { background: var(--color-surface-muted); }
 .nav-link.active { color: var(--color-primary); background: var(--color-primary-soft); }
 .account { margin-top: auto; padding-top: 20px; border-top: 1px solid var(--color-border); }
+.account-toggle { display: none; }
 .account-identity { display: flex; align-items: center; gap: 8px; }
 .account-identity strong { display: block; font-size: 13px; font-weight: 500; }
 .account-identity span:not(.avatar) { display: block; font-size: 10px; color: var(--color-text-muted); }
@@ -67,8 +68,10 @@ dialog::backdrop { background: #18252042; }
 @media (max-width: 767px) {
   .sidebar { padding: 16px 16px 0; gap: 14px; }
   .brand { font-size: 21px; }
-  .account { gap: 4px; }
+  .account { gap: 4px; position: relative; }
   .account-identity { display: none; }
+  .account-toggle { display: inline-flex; }
+  .account[data-expanded=true] .account-identity { display: flex; position: absolute; z-index: 2; top: 52px; right: 0; padding: 16px; background: white; border: 1px solid var(--color-border); border-radius: 10px; white-space: nowrap; }
   .signout { padding: 8px; }
   .main-content { padding: 28px 16px; }
   h1 { font-size: 26px; }

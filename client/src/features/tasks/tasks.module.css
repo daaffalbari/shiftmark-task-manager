@@ -65,10 +65,14 @@
 .timeline li:last-child { padding-bottom: 0; }
 .timeline strong { font-weight: 500; }
 .timeline time { display: block; color: var(--color-text-muted); font-size: 11px; margin-top: 6px; }
+.sheetFooter { padding: 24px 28px; border-top: 1px solid var(--color-border); }
+.sheetFooter p { color: var(--color-text-muted); font-size: 12px; }
+.deleteTitle { overflow-wrap: anywhere; }
 @media (max-width: 767px) {
-  .sheet { width: 100%; border: 0; }
+  .sheet { width: 100%; border: 0; display: flex; flex-direction: column; }
   .sheetHeader, .statusSection, .history { padding: 24px; }
-  .transitionButton { position: sticky; bottom: 16px; z-index: 1; }
+  .sheetHeader, .statusSection, .sheetFooter { flex-shrink: 0; }
+  .history { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 }
 @media (max-width: 1199px) {
   .listHeading, .row { grid-template-columns: minmax(120px, 1fr) 112px 160px 44px; gap: 8px; padding: 0 16px; }
@@ -80,10 +84,11 @@
   .pageHeader > button { margin-top: 28px; padding: 10px 12px; white-space: nowrap; }
   .listCaption span:last-child { font-size: 10px; }
   .listHeading { display: none; }
-  .row { grid-template-columns: auto 1fr 44px; gap: 8px; padding: 16px; }
+  .row { grid-template-columns: auto minmax(0, 1fr) 64px; gap: 8px; padding: 16px; }
   .row:first-child { border-top: 0; }
   .taskName { grid-column: 1 / 3; grid-row: 1; }
   .rowStatus { grid-column: 1; grid-row: 2; }
   .updated { grid-column: 2; grid-row: 2; font-size: 10px; }
-  .detailsButton { grid-column: 3; grid-row: 1 / 3; }
+  .detailsButton { grid-column: 3; grid-row: 1 / 3; flex-direction: column-reverse; gap: 2px; font-size: 10px; }
+  .detailsButton span { display: inline; }
 }

@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, ArrowRight, X } from 'lucide-react';
+import { Check, ArrowRight, Trash2, X } from 'lucide-react';
 import { taskStatuses, type ApiTask, type ApiAuditLog } from '@shiftmark/contracts';
 import { ApiRequestError } from '../../api/http';
 import { useDialog } from '../../components/useDialog';
-import { changeStatus, getAuditLogs, listTasks } from './tasks.api';
-import { StatusChip, statusLabels } from './status';
+import { changeStatus, deleteTask, getAuditLogs, listTasks } from './tasks.api';
+import { StatusChip, statusLabels, formatTimestamp } from './status';
 import { AuditTimeline } from './AuditTimeline';
+import { DeleteTaskDialog } from './DeleteTaskDialog';
 import styles from './tasks.module.css';
 
-export function TaskDetailSheet({ task, onClose, onTaskUpdated, readOnly }: {
-  task: ApiTask | null; onClose: () => void; onTaskUpdated: (task: ApiTask) => void; readOnly: boolean;
+export function TaskDetailSheet({ task, onClose, onTaskUpdated, readOnly, onDeleted }: {
+  task: ApiTask | null; onClose: () => void; onTaskUpdated: (task: ApiTask) => void; readOnly: boolean; onDeleted?: () => void;
 }) {
   const close = useRef<HTMLButtonElement>(null);
   const dialog = useDialog(!!task, close);
@@ -20,6 +21,7 @@ export function TaskDetailSheet({ task, onClose, onTaskUpdated, readOnly }: {
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const [retry, setRetry] = useState(0);
+  const [deleting, setDeleting] = useState(false);
   useEffect(() => { setCurrent(task); }, [task]);
   useEffect(() => {
     if (!task) return;
@@ -54,7 +56,7 @@ export function TaskDetailSheet({ task, onClose, onTaskUpdated, readOnly }: {
       } else { setError('Could not update task. Please try again.'); }
     } finally { setBusy(false); }
   }
-  return <dialog ref={dialog} className={styles.sheet} aria-labelledby="detail-title" onCancel={(event) => { event.preventDefault(); if (!busy) onClose(); }}>
+  return <><dialog ref={dialog} className={styles.sheet} aria-labelledby="detail-title" onCancel={(event) => { event.preventDefault(); if (!busy) onClose(); }}>
     {current && <>
       <div className={styles.sheetHeader}><div><p className="eyebrow">TASK DETAILS <span className={styles.taskId}>#{current.id}</span></p><h2 id="detail-title">{current.title}</h2></div><button ref={close} className="icon-button" aria-label="Close task details" onClick={onClose} disabled={busy}><X /></button></div>
       <section className={styles.statusSection} aria-label="Current status">
@@ -68,6 +70,7 @@ export function TaskDetailSheet({ task, onClose, onTaskUpdated, readOnly }: {
       <section className={styles.history}><h3>Status history</h3><p className={styles.historyIntro}>Every step, in order. Oldest first.</p>
         {auditError ? <div><p role="alert" className="error">Could not load history.</p><button onClick={() => setRetry(retry + 1)}>Try again</button></div> : logs === null ? <p role="status">Loading history…</p> : <AuditTimeline logs={logs} />}
       </section>
+      <footer className={styles.sheetFooter}>{current.deletedAt ? <p>Deleted on <time dateTime={current.deletedAt}>{formatTimestamp(current.deletedAt)}</time>. Status history is preserved.</p> : !locked && <button className="danger-text" disabled={busy} onClick={() => setDeleting(true)}><Trash2 aria-hidden="true" />Delete task</button>}</footer>
     </>}
-  </dialog>;
+  </dialog>{deleting && <DeleteTaskDialog task={current} onCancel={() => setDeleting(false)} onConfirm={async () => { await deleteTask(current!.id); onDeleted ? onDeleted() : onClose(); }} />}</>;
 }

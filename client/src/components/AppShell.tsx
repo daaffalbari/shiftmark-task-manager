@@ -1,12 +1,15 @@
 import { useState, type ReactNode } from 'react';
-import { ListChecks, LogOut } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { ListChecks, LogOut, Trash2, UserRound } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
 import type { ApiUser } from '@shiftmark/contracts';
 import { signOut } from '../features/auth/auth.api';
 
 export function AppShell({ user, onSignedOut, children }: { user: ApiUser; onSignedOut: () => void; children: ReactNode }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [params] = useSearchParams();
+  const deleted = params.get('view') === 'deleted';
   async function logout() {
     if (busy) return;
     setBusy(true); setError('');
@@ -17,9 +20,10 @@ export function AppShell({ user, onSignedOut, children }: { user: ApiUser; onSig
   return <div className="workspace">
     <aside className="sidebar">
       <Link className="brand" to="/tasks" aria-label="shiftmark home"><ListChecks aria-hidden="true" />shiftmark<span className="brand-dot">.</span></Link>
-      <nav aria-label="Workspace"><Link className="nav-link active" to="/tasks"><ListChecks aria-hidden="true" />My tasks</Link></nav>
-      <div className="account">
-        <div className="account-identity"><span className="avatar" aria-hidden="true">{user.name.split(' ').map((part) => part[0]).join('')}</span><div><strong>{user.name}</strong><span>{user.email}</span></div></div>
+      <nav aria-label="Workspace"><Link className={'nav-link' + (!deleted ? ' active' : '')} aria-current={!deleted ? 'page' : undefined} to="/tasks"><ListChecks aria-hidden="true" />My tasks</Link><Link className={'nav-link' + (deleted ? ' active' : '')} aria-current={deleted ? 'page' : undefined} to="/tasks?view=deleted"><Trash2 aria-hidden="true" />Deleted tasks</Link></nav>
+      <div className="account" data-expanded={accountOpen}>
+        <button className="account-toggle icon-button" aria-label="Account" aria-expanded={accountOpen} aria-controls="account-identity" onClick={() => setAccountOpen(!accountOpen)}><UserRound aria-hidden="true" /></button>
+        <div id="account-identity" className="account-identity"><span className="avatar" aria-hidden="true">{user.name.split(' ').map((part) => part[0]).join('')}</span><div><strong>{user.name}</strong><span>{user.email}</span></div></div>
         <button className="signout" onClick={logout} disabled={busy}><LogOut aria-hidden="true" />{busy ? 'Signing out…' : 'Sign out'}</button>
         {error && <p role="alert" className="error">{error}</p>}
       </div>
