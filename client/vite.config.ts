@@ -6,6 +6,7 @@ export default defineConfig(({ command, mode }) => {
   const env = command === 'serve' ? loadEnv(mode, fileURLToPath(new URL('../', import.meta.url)), '') : process.env;
   return {
     plugins: [react()],
+    publicDir: fileURLToPath(new URL('../assets', import.meta.url)),
     server: { port: Number(env.WEB_PORT ?? 5173), strictPort: true, proxy: { '/api': 'http://localhost:' + (env.PORT ?? 3000) } },
   };
 });

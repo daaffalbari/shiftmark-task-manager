@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Eye, EyeOff, ListChecks } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import type { ApiUser } from '@shiftmark/contracts';
 import { ApiRequestError } from '../../api/http';
 import { signIn } from './auth.api';
@@ -22,7 +22,7 @@ export function LoginPage({ onSignedIn, message }: { onSignedIn: (user: ApiUser)
   }
   return <main className="login-page">
     <div className="login-content">
-      <div className="brand"><ListChecks aria-hidden="true" />shiftmark<span className="brand-dot">.</span></div>
+      <div className="brand"><img src="/logo.svg" alt="shiftmark" width="1140" height="212" /></div>
       <div className="login-heading"><p className="eyebrow">YOUR PRIVATE WORKSPACE</p><h1>Sign in to shiftmark</h1><p>Pick up where you left off.</p></div>
       {message && <p role="status" className="notice">{message}</p>}
       <form onSubmit={submit}>

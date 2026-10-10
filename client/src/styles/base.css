@@ -23,9 +23,8 @@ input { width: 100%; min-width: 0; height: 46px; padding: 10px 12px; border: 1px
 .eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 1.7px; color: var(--color-text-muted); }
 .error { color: var(--color-danger); margin-top: 12px; }
 .notice { padding: 12px; background: var(--color-primary-soft); border-radius: 10px; color: var(--color-primary); }
-.brand { display: inline-flex; align-items: center; gap: 9px; color: var(--color-text); font-size: 23px; font-weight: 600; letter-spacing: -.9px; }
-.brand > svg { width: 23px; height: 23px; color: var(--color-primary); }
-.brand-dot { color: var(--color-primary); margin-left: -8px; }
+.brand { display: inline-flex; align-items: center; }
+.brand img { display: block; width: 160px; max-width: 100%; height: auto; }
 .login-page { min-height: 100dvh; display: grid; place-items: center; padding: 32px 20px; }
 .login-content { width: 100%; max-width: 400px; }
 .login-heading { margin: 48px 0 28px; }
@@ -67,7 +66,7 @@ dialog::backdrop { background: #18252042; }
 }
 @media (max-width: 767px) {
   .sidebar { padding: 16px 16px 0; gap: 14px; }
-  .brand { font-size: 21px; }
+  .brand img { width: 144px; }
   .account { gap: 4px; position: relative; }
   .account-identity { display: none; }
   .account-toggle { display: inline-flex; }
