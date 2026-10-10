@@ -15,6 +15,13 @@
       "when": 1791646915646,
       "tag": "0001_protect-audit-logs",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791651068395,
+      "tag": "0002_team-workspace",
+      "breakpoints": true
     }
   ]
 }

@@ -13,37 +13,40 @@ afterEach(() => f.sqlite.close());
 const patch = (status: string, cookie?: string) => f.request.patch('/api/tasks/' + id + '/status').set('Origin', f.origin).set('Cookie', cookie ?? f.john).send({ status });
 
 test('adjacent changes are logged once; same status preserves timestamp and history', async () => {
-  const first = await patch('pending');
+  const first = await patch('pending', f.jane);
   expect(first.status).toBe(200);
   expect(first.body.changed).toBe(true);
   const duplicate = await patch('pending');
   expect(duplicate.body).toEqual({ task: first.body.task, changed: false });
   const logs = f.db.select().from(auditLogs).all();
-  expect(logs).toHaveLength(1);
-  expect(logs[0]).toMatchObject({ actorId: 1, fromStatus: 'to_do', toStatus: 'pending' });
+  expect(logs).toHaveLength(2);
+  expect(logs[1]).toMatchObject({ actorId: 2, event: { type: 'status_changed', fromStatus: 'to_do', toStatus: 'pending' } });
+  expect(first.body.task.createdBy.id).toBe(1);
+  expect(first.body.task.updatedBy.id).toBe(2);
 });
 
-test('skips, backwards moves, unknown statuses and foreign tasks are rejected', async () => {
+test('skips, backwards moves, unknown statuses, forged actors and missing tasks are rejected', async () => {
   expect((await patch('done')).status).toBe(409);
   expect((await patch('unknown')).status).toBe(400);
-  expect((await patch('pending', f.jane)).status).toBe(404);
+  expect((await f.request.patch('/api/tasks/999/status').set('Origin', f.origin).set('Cookie', f.jane).send({ status: 'pending' })).status).toBe(404);
+  expect((await f.request.patch('/api/tasks/' + id + '/status').set('Origin', f.origin).set('Cookie', f.jane).send({ status: 'pending', actorId: 1 })).status).toBe(400);
   await patch('pending');
   expect((await patch('to_do')).status).toBe(409);
   expect((await patch('done')).body.error.code).toBe('INVALID_TRANSITION');
   expect(f.db.select().from(tasks).get()!.status).toBe('pending');
-  expect(f.db.select().from(auditLogs).all()).toHaveLength(1);
+  expect(f.db.select().from(auditLogs).all()).toHaveLength(2);
 });
 
 test('duplicate requests are idempotent', async () => {
-  const results = await Promise.all([patch('pending'), patch('pending')]);
+  const results = await Promise.all([patch('pending'), patch('pending', f.jane)]);
   expect(results.map((result) => result.status)).toEqual([200, 200]);
   expect(results.map((result) => result.body.changed).sort()).toEqual([false, true]);
-  expect(f.db.select().from(auditLogs).all()).toHaveLength(1);
+  expect(f.db.select().from(auditLogs).all()).toHaveLength(2);
 });
 
 test('failure to insert audit rolls back the task update', async () => {
   f.sqlite.exec("CREATE TRIGGER test_fail_audit BEFORE INSERT ON audit_logs BEGIN SELECT RAISE(ABORT, 'test audit failure'); END;");
   expect((await patch('pending')).status).toBe(500);
   expect(f.db.select().from(tasks).get()!.status).toBe('to_do');
-  expect(f.db.select().from(auditLogs).all()).toHaveLength(0);
+  expect(f.db.select().from(auditLogs).all()).toHaveLength(1);
 });

@@ -6,17 +6,17 @@ let f: Awaited<ReturnType<typeof createFixture>>;
 beforeEach(async () => { f = await createFixture(); });
 afterEach(() => f.sqlite.close());
 
-test('creates trimmed To do tasks without a creation audit and isolates owners', async () => {
+test('creates trimmed To do tasks with a creation event and shares the team list', async () => {
   const john = await f.request.post('/api/tasks').set('Origin', f.origin).set('Cookie', f.john).send({ title: '  Prepare invoice  ' });
   expect(john.status).toBe(201);
   expect(john.body.task.title).toBe('Prepare invoice');
   expect(john.body.task.status).toBe('to_do');
   expect(john.body.task.createdAt).toBe('2026-10-10T07:00:00.000Z');
   expect(john.body.task.deletedAt).toBeNull();
-  expect(f.db.select().from(auditLogs).all()).toHaveLength(0);
+  expect(f.db.select().from(auditLogs).all()).toHaveLength(1);
   await f.request.post('/api/tasks').set('Origin', f.origin).set('Cookie', f.jane).send({ title: 'Jane task' });
   const result = await f.request.get('/api/tasks').set('Cookie', f.john);
-  expect(result.body.tasks.map((task: { title: string }) => task.title)).toEqual(['Prepare invoice']);
+  expect(result.body.tasks.map((task: { title: string }) => task.title)).toEqual(['Jane task', 'Prepare invoice']);
 });
 
 test('validates strict creation payloads and view; defaults to active', async () => {

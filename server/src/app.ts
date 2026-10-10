@@ -5,6 +5,7 @@ import { ApiFailure } from './domain/api-error';
 import { requireOrigin } from './middleware/require-origin';
 import { authRoutes } from './modules/auth/auth.routes';
 import { taskRoutes } from './modules/tasks/task.routes';
+import { memberRoutes } from './modules/team/member.routes';
 
 export interface AppContext { db: Db; origin: string; secureCookies: boolean; now: () => Date }
 
@@ -16,6 +17,7 @@ export function createApp(ctx: AppContext) {
   app.use(express.json({ limit: '16kb' }));
   app.use('/api/auth', authRoutes(ctx));
   app.use('/api/tasks', taskRoutes(ctx));
+  app.use('/api/members', memberRoutes(ctx));
   app.use((_req, _res, next) => next(new ApiFailure(404, 'NOT_FOUND', 'Route not found.')));
   const handleError: ErrorRequestHandler = (error, _req, res, _next) => {
     if (error instanceof ApiFailure) {
