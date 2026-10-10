@@ -46,7 +46,7 @@ async function login(page: Page, email: string) {
   await page.getByLabel('Email', { exact: true }).fill(email);
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByLabel('Password', { exact: true }).press('Enter');
-  await page.getByRole('heading', { name: 'My tasks', exact: true }).waitFor();
+  await page.getByRole('heading', { name: 'Team tasks', exact: true }).waitFor();
 }
 async function noOverflow(page: Page) {
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'Page must not overflow horizontally');
@@ -59,101 +59,150 @@ try {
   await ready();
   browser = await chromium.launch({ executablePath: process.argv[2] || undefined, headless: true });
   for (const width of [1440, 390]) {
-    const context = await browser.newContext({ viewport: { width, height: 900 }, timezoneId: 'Asia/Jakarta', reducedMotion: 'reduce' });
-    const page = await context.newPage();
-    page.on('pageerror', (error) => errors.push(error.message));
-    await page.goto(origin + '/tasks');
-    await page.getByRole('heading', { name: 'Sign in to shiftmark' }).waitFor();
-    await noOverflow(page);
-    await page.screenshot({ path: join(output, 'login-' + width + '.png'), fullPage: true });
-    await page.getByLabel('Email', { exact: true }).fill('john@example.com');
-    await page.getByLabel('Password', { exact: true }).fill('incorrect-password');
-    await page.getByLabel('Password', { exact: true }).press('Enter');
-    await visible(page, 'Invalid email or password.');
-    await login(page, 'john@example.com');
+    const options = { viewport: { width, height: 900 }, timezoneId: 'Asia/Jakarta', reducedMotion: 'reduce' as const };
+    const johnContext = await browser.newContext(options);
+    const janeContext = await browser.newContext(options);
+    const john = await johnContext.newPage();
+    const jane = await janeContext.newPage();
+    for (const page of [john, jane]) page.on('pageerror', (error) => errors.push(error.message));
+    const title = 'Prepare invoice ' + width;
+    const revised = 'Approved invoice ' + width;
+    await john.goto(origin + '/tasks');
+    await john.getByRole('heading', { name: 'Sign in to shiftmark' }).waitFor();
+    await noOverflow(john);
+    await john.screenshot({ path: join(output, 'team-login-' + width + '.png'), fullPage: true });
+    await john.getByLabel('Email', { exact: true }).fill('john@example.com');
+    await john.getByLabel('Password', { exact: true }).fill('incorrect-password');
+    await john.getByLabel('Password', { exact: true }).press('Enter');
+    await visible(john, 'Invalid email or password.');
+    await login(john, 'john@example.com');
     if (width === 390) {
-      await page.getByRole('button', { name: 'Account', exact: true }).click();
-      await visible(page, 'john@example.com');
-      await page.getByRole('button', { name: 'Account', exact: true }).click();
+      await john.getByRole('button', { name: 'Account', exact: true }).click();
+      await visible(john, 'john@example.com');
+      await john.getByRole('button', { name: 'Account', exact: true }).click();
     }
-    const newButton = page.getByRole('button', { name: 'New task', exact: true }).first();
+    const newButton = john.locator('header').getByRole('button', { name: 'New task', exact: true });
     await newButton.click();
-    assert(await page.getByLabel('Task title').evaluate((element) => element === document.activeElement));
-    await page.keyboard.press('Escape');
+    assert(await john.getByLabel('Task title').evaluate((element) => element === document.activeElement));
+    await john.keyboard.press('Escape');
     assert(await newButton.evaluate((element) => element === document.activeElement), 'Create dialog must restore focus');
     await newButton.click();
-    await page.getByLabel('Task title').fill('Prepare invoice ' + width);
-    await page.getByRole('button', { name: 'Create task', exact: true }).click();
-    const opener = page.getByRole('button', { name: 'View details for Prepare invoice ' + width, exact: true });
-    await opener.waitFor();
-    await noOverflow(page);
-    await page.screenshot({ path: join(output, 'tasks-' + width + '.png'), fullPage: true });
-    await opener.click();
-    await visible(page, 'No status changes yet.');
-    for (const name of ['Move to Pending', 'Move to In progress', 'Mark as Done']) {
-      const action = page.getByRole('button', { name, exact: true });
-      await action.waitFor();
-      await action.click();
+    await john.getByLabel('Task title').fill(title);
+    await john.getByLabel('Description', { exact: true }).fill('Check draft totals');
+    await john.getByRole('option', { name: 'John Doe', exact: true }).waitFor({ state: 'attached' });
+    await john.getByLabel('Assignee', { exact: true }).selectOption({ label: 'John Doe' });
+    await noOverflow(john);
+    await john.screenshot({ path: join(output, 'team-create-' + width + '.png'), fullPage: true });
+    await john.getByRole('button', { name: 'Create task', exact: true }).click();
+    await john.getByRole('button', { name: 'View details for ' + title, exact: true }).waitFor();
+
+    await jane.goto(origin + '/tasks');
+    await jane.getByRole('heading', { name: 'Sign in to shiftmark' }).waitFor();
+    await login(jane, 'jane@example.com');
+    const janeOpener = jane.getByRole('button', { name: 'View details for ' + title, exact: true });
+    await janeOpener.waitFor();
+    await janeOpener.click();
+    const activity = jane.getByRole('list', { name: 'Task activity', exact: true });
+    await activity.getByText('Title: ' + title, { exact: true }).waitFor();
+    assert((await activity.textContent())?.includes('John Doe created this task.'));
+    await jane.getByRole('button', { name: 'Edit details', exact: true }).click();
+    await jane.getByLabel('Task title').fill(revised);
+    await jane.getByLabel('Description', { exact: true }).fill('Approved totals');
+    await jane.getByRole('option', { name: 'Jane Doe', exact: true }).waitFor({ state: 'attached' });
+    await jane.getByLabel('Assignee', { exact: true }).selectOption({ label: 'Jane Doe' });
+    await jane.screenshot({ path: join(output, 'team-edit-' + width + '.png'), fullPage: true });
+    await jane.getByRole('button', { name: 'Save changes', exact: true }).click();
+    await jane.getByRole('heading', { name: revised, exact: true }).waitFor();
+    await activity.getByText('Approved totals', { exact: false }).waitFor();
+    assert((await activity.textContent())?.includes('Jane Doe updated this task.'));
+    assert((await activity.textContent())?.includes('BeforeCheck draft totalsAfterApproved totals'));
+    assert((await activity.textContent())?.includes('BeforeJohn DoeAfterJane Doe'));
+
+    // A second real session sees the edit and cannot overwrite it from a stale form.
+    await john.getByRole('button', { name: 'Refresh', exact: true }).click();
+    const johnOpener = john.getByRole('button', { name: 'View details for ' + revised, exact: true });
+    await johnOpener.waitFor();
+    await noOverflow(john);
+    await john.screenshot({ path: join(output, 'team-tasks-' + width + '.png'), fullPage: true });
+    if (width === 1440) {
+      for (const checkWidth of [320, 768, 1024]) {
+        await john.setViewportSize({ width: checkWidth, height: 900 });
+        await noOverflow(john);
+      }
+      await john.setViewportSize({ width, height: 900 });
     }
-    await visible(page, 'This task is complete.');
-    assert.equal(await page.getByRole('list', { name: 'Status changes' }).getByRole('listitem').count(), 3);
-    await noOverflow(page);
-    const sheetWidth = await page.getByRole('dialog', { name: 'Prepare invoice ' + width, exact: true }).evaluate((element) => element.getBoundingClientRect().width);
-    assert.equal(Math.round(sheetWidth), width === 1440 ? 440 : 390);
-    if (width === 1440) assert.equal(await page.locator('.sidebar').evaluate((element) => element.getBoundingClientRect().width), 208);
-    await page.screenshot({ path: join(output, 'history-' + width + '.png'), fullPage: true });
-    // Native dialog contains keyboard focus, even while the task list is present.
+    await johnOpener.click();
+    await john.getByRole('list', { name: 'Task activity' }).waitFor();
+    await john.getByRole('button', { name: 'Edit details', exact: true }).click();
+    await john.getByRole('option', { name: 'Jane Doe', exact: true }).waitFor({ state: 'attached' });
+    await john.getByLabel('Task title').fill('John unsaved draft');
+    await jane.getByRole('button', { name: 'Move to Pending', exact: true }).click();
+    await jane.getByRole('button', { name: 'Move to In progress', exact: true }).waitFor();
+    await john.getByRole('button', { name: 'Save changes', exact: true }).click();
+    await john.getByRole('alert').getByText('A teammate changed this task.', { exact: false }).waitFor();
+    assert.equal(await john.getByLabel('Task title').inputValue(), 'John unsaved draft');
+    assert(await john.getByRole('button', { name: 'Save changes', exact: true }).isDisabled());
+    await john.screenshot({ path: join(output, 'team-conflict-' + width + '.png'), fullPage: true });
+    await john.getByRole('button', { name: 'Reload latest', exact: true }).click();
+    await john.waitForFunction((expected) => (document.querySelector('#edit-task-title') as HTMLInputElement)?.value === expected, revised);
+    await john.getByRole('button', { name: 'Cancel', exact: true }).click();
+    for (const name of ['Move to In progress', 'Mark as Done']) {
+      const action = jane.getByRole('button', { name, exact: true });
+      await action.waitFor(); await action.click();
+    }
+    await visible(jane, 'This task is complete.');
+    await john.getByRole('button', { name: 'Refresh task', exact: true }).click();
+    await visible(john, 'This task is complete.');
+    const johnActivity = john.getByRole('list', { name: 'Task activity', exact: true });
+    assert.equal(await johnActivity.getByRole('listitem').count(), 5);
+    assert((await johnActivity.textContent())?.includes('Jane Doe moved this task from In progress to Done.'));
+    const detail = john.getByRole('dialog', { name: revised, exact: true });
+    assert.equal(Math.round(await detail.evaluate((element) => element.getBoundingClientRect().width)), width === 1440 ? 440 : 390);
+    if (width === 1440) assert.equal(await john.locator('.sidebar').evaluate((element) => element.getBoundingClientRect().width), 208);
+    await detail.evaluate((element) => { element.scrollTop = 0; });
+    await john.screenshot({ path: join(output, 'team-detail-' + width + '.png'), fullPage: true });
+    await johnActivity.scrollIntoViewIfNeeded();
+    await john.screenshot({ path: join(output, 'team-history-' + width + '.png'), fullPage: true });
+    await noOverflow(john);
     for (let key = 0; key < 6; key++) {
-      await page.keyboard.press('Tab');
-      assert(await page.evaluate(() => document.activeElement === document.body || !!document.activeElement?.closest('dialog[open]')), 'No background control may receive focus while modal is open');
+      await john.keyboard.press('Tab');
+      assert(await john.evaluate(() => document.activeElement === document.body || !!document.activeElement?.closest('dialog[open]')), 'Modal must contain keyboard focus');
     }
-    assert(await page.getByRole('dialog', { name: 'Prepare invoice ' + width, exact: true }).evaluate((element) => element.matches(':modal')), 'Detail must use the native modal top layer');
-    await page.keyboard.press('Escape');
-    assert(await opener.evaluate((element) => element === document.activeElement), 'Detail must restore focus after refresh');
-    await opener.click();
-    await page.getByRole('button', { name: 'Delete task', exact: true }).click();
-    const confirm = page.getByRole('dialog', { name: 'Delete “Prepare invoice ' + width + '”?', exact: true });
+    assert(await detail.evaluate((element) => element.matches(':modal')), 'Detail must use the native modal top layer');
+    await john.keyboard.press('Escape');
+    assert(await johnOpener.evaluate((element) => element === document.activeElement), 'Detail must restore focus after refresh');
+
+    await jane.getByRole('button', { name: 'Delete task', exact: true }).click();
+    const confirm = jane.getByRole('dialog', { name: 'Delete “' + revised + '”?', exact: true });
     await confirm.getByRole('button', { name: 'Cancel' }).click();
-    await page.getByRole('button', { name: 'Delete task', exact: true }).click();
+    await jane.getByRole('button', { name: 'Delete task', exact: true }).click();
     await confirm.getByRole('button', { name: 'Delete task', exact: true }).click();
-    await opener.waitFor({ state: 'hidden' });
-    await page.getByRole('link', { name: 'Deleted tasks', exact: true }).click();
-    await opener.waitFor();
-    await opener.click();
-    await page.getByText('Deleted on', { exact: false }).waitFor();
-    await page.getByRole('list', { name: 'Status changes' }).waitFor();
-    assert.equal(await page.getByRole('list', { name: 'Status changes' }).getByRole('listitem').count(), 3);
-    assert.equal(await page.getByRole('button', { name: /Move to|Mark as|Delete task/ }).count(), 0);
-    await page.screenshot({ path: join(output, 'deleted-' + width + '.png'), fullPage: true });
-    await page.keyboard.press('Escape');
-    await page.getByRole('button', { name: 'Sign out', exact: true }).click();
-    await login(page, 'jane@example.com');
-    await visible(page, 'Nothing on your list yet.');
-    await page.getByRole('link', { name: 'Deleted tasks', exact: true }).click();
-    if (width === 1440) await visible(page, 'No deleted tasks.');
-    assert.equal(await page.getByRole('button', { name: /View details for Prepare invoice/ }).count(), 0);
-    await noOverflow(page);
-    // Expire real SQLite sessions while private task data is visible.
-    await page.getByRole('link', { name: 'My tasks', exact: true }).click();
-    await page.getByRole('button', { name: 'New task', exact: true }).first().click();
-    await page.getByLabel('Task title').fill('Private Jane task ' + width);
-    await page.getByRole('button', { name: 'Create task', exact: true }).click();
-    await visible(page, 'Private Jane task ' + width);
+    await jane.getByRole('heading', { name: 'Team tasks', exact: true }).waitFor();
+    await john.getByRole('button', { name: 'Refresh', exact: true }).click();
+    await johnOpener.waitFor({ state: 'hidden' });
+    await john.getByRole('link', { name: 'Deleted tasks', exact: true }).click();
+    await johnOpener.waitFor(); await johnOpener.click();
+    await john.getByText('Deleted on', { exact: false }).waitFor();
+    await johnActivity.waitFor();
+    assert.equal(await johnActivity.getByRole('listitem').count(), 6);
+    assert((await johnActivity.textContent())?.includes('Jane Doe deleted “' + revised + '”. History is preserved.'));
+    assert.equal(await john.getByRole('button', { name: /Move to|Mark as|Delete task|Edit details/ }).count(), 0);
+    await johnActivity.scrollIntoViewIfNeeded();
+    await john.screenshot({ path: join(output, 'team-deleted-' + width + '.png'), fullPage: true });
+    await noOverflow(john);
+
+    // Expiry must remove the task and its shared history from the signed-out UI.
     const state = openDatabase(databasePath);
-    state.sqlite.run('UPDATE sessions SET expires_at = 0');
-    state.sqlite.close();
-    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
-    await page.getByRole('heading', { name: 'Sign in to shiftmark' }).waitFor();
-    assert.equal(await page.getByText('Private Jane task ' + width, { exact: true }).count(), 0);
-    await visible(page, 'Your session has ended. Please sign in again.');
-    // Clean up only the test account's task through the real application.
-    await login(page, 'jane@example.com');
-    await page.getByRole('button', { name: 'View details for Private Jane task ' + width, exact: true }).click();
-    await page.getByRole('button', { name: 'Delete task', exact: true }).click();
-    await page.getByRole('dialog', { name: 'Delete “Private Jane task ' + width + '”?' }).getByRole('button', { name: 'Delete task' }).click();
-    await page.getByRole('button', { name: 'Sign out', exact: true }).click();
-    await context.close();
-    console.log('PASS ' + width + 'px: login, create, workflow, history, delete, isolation, expiry, keyboard and overflow');
+    state.sqlite.run('UPDATE sessions SET expires_at = 0'); state.sqlite.close();
+    await john.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await john.getByRole('heading', { name: 'Sign in to shiftmark' }).waitFor();
+    assert.equal(await john.getByRole('list', { name: 'Task activity' }).count(), 0);
+    await visible(john, 'Your session has ended. Please sign in again.');
+    await login(john, 'john@example.com');
+    await john.getByRole('button', { name: 'Sign out', exact: true }).click();
+    await john.getByRole('heading', { name: 'Sign in to shiftmark' }).waitFor();
+    await johnContext.close(); await janeContext.close();
+    console.log('PASS ' + width + 'px: shared access, assignment, before/after edits, stale draft, workflow, deletion history, expiry, keyboard and overflow');
   }
   assert.deepEqual(errors, [], 'Browser must not raise JavaScript errors');
   console.log('Screenshots: ' + output);
