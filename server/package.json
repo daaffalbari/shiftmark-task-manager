@@ -1,0 +1,6 @@
+{
+  "name": "@shiftmark/server",
+  "private": true,
+  "type": "module",
+  "dependencies": { "@shiftmark/contracts": "workspace:*" }
+}

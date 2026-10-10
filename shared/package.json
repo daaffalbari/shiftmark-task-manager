@@ -1,0 +1,7 @@
+{
+  "name": "@shiftmark/contracts",
+  "private": true,
+  "type": "module",
+  "exports": "./src/contracts.ts",
+  "dependencies": { "zod": "^4.1.12" }
+}

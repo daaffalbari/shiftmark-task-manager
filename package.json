@@ -1,0 +1,12 @@
+{
+  "name": "shiftmark",
+  "private": true,
+  "workspaces": ["shared", "server"],
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc -p shared && tsc -p server",
+    "db:migrate": "bun server/src/db/migrate.ts",
+    "db:seed": "bun server/src/db/seed.ts"
+  },
+  "devDependencies": { "@types/bun": "^1.3.0", "typescript": "^5.9.3" }
+}
