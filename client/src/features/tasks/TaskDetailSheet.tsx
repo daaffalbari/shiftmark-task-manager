@@ -34,7 +34,9 @@ export function TaskDetailSheet({ task, onClose, onTaskUpdated, readOnly, onDele
     if (!task) return;
     let alive = true;
     setLogs(null); setAuditError(false);
-    Promise.all([getTask(task.id), getAuditLogs(task.id)]).then(([latest, history]) => { if (alive) { setCurrent(latest); setLogs(history); } })
+    Promise.all([getTask(task.id), getAuditLogs(task.id)]).then(([latest, history]) => {
+      if (alive) { setCurrent(latest); setLogs(history); if (latest.version !== task.version) onTaskUpdated(latest); }
+    })
       .catch(() => { if (alive) setAuditError(true); });
     return () => { alive = false; };
   }, [task?.id, task?.version, retry]);

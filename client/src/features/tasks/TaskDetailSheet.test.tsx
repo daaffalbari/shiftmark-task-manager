@@ -57,6 +57,20 @@ test('completed tasks have no next-step action', async () => {
   await screen.findByText('No recorded activity.');
 });
 
+test('refreshing a teammate’s changes also updates the list behind the sheet', async () => {
+  let latest = sampleTask;
+  mockFetch((path) => Response.json(path.includes('audit-logs') ? { logs: [] } : path === '/api/tasks/104' ? { task: latest } : { tasks: [latest] }));
+  render(<MyTasksPage />);
+  fireEvent.click(await screen.findByRole('button', { name: 'View details for Prepare invoice' }));
+  await screen.findByText('No recorded activity.');
+  latest = { ...sampleTask, status: 'done', version: 3, updatedBy: { id: 2, name: 'Jane Doe' } };
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh task' }));
+  await screen.findByText('This task is complete.');
+  const rows = screen.getByRole('list', { name: 'Tasks' });
+  await waitFor(() => expect(within(rows).getByText('Done')).toBeVisible());
+  expect(within(rows).queryByText('Pending')).toBeNull();
+});
+
 test('status mutation refreshes server task and audit; busy actions cannot submit twice', async () => {
   let patches = 0;
   let reads = 0;
