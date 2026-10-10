@@ -1,51 +1,62 @@
 import { afterEach, expect, test } from 'bun:test';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { App } from './App';
+import { mockFetch, sampleMembers, sampleTask } from '../../test/fixtures';
 
 const originalFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = originalFetch; });
-const user = { id: 1, name: 'John Doe', email: 'john@example.com' };
 
-test('signed-out protected route renders sign in', async () => {
-  globalThis.fetch = (async () => Response.json({ error: { code: 'UNAUTHENTICATED', message: 'Please sign in.' } }, { status: 401 })) as unknown as typeof fetch;
-  render(<MemoryRouter initialEntries={['/tasks']}><App /></MemoryRouter>);
-  expect(await screen.findByRole('heading', { name: 'Sign in to shiftmark' })).toBeVisible();
+function openWorkspace() {
+  return render(<MemoryRouter initialEntries={['/tasks']}><App /></MemoryRouter>);
+}
+
+test('opens the shared workspace without login and shows the predefined actor', async () => {
+  const paths: string[] = [];
+  mockFetch((path) => { paths.push(path); return Response.json(path === '/api/members' ? { members: sampleMembers } : { tasks: [sampleTask] }); });
+  openWorkspace();
+  expect(await screen.findByRole('heading', { name: 'Team tasks' })).toBeVisible();
+  expect(screen.getByRole('combobox', { name: 'Acting as' })).toHaveValue('2');
+  expect(paths.some((path) => path.includes('/auth/'))).toBe(false);
 });
 
-test('authenticated workspace clears private view on 401', async () => {
-  globalThis.fetch = (async (path: unknown) => Response.json(String(path).endsWith('/me') ? { user } : { tasks: [] })) as typeof fetch;
-  render(<MemoryRouter initialEntries={['/tasks']}><App /></MemoryRouter>);
-  expect(await screen.findByText('john@example.com')).toBeVisible();
-  await act(async () => { window.dispatchEvent(new Event('shiftmark:unauthorized')); });
-  expect(await screen.findByRole('heading', { name: 'Sign in to shiftmark' })).toBeVisible();
-  expect(screen.queryByText('john@example.com')).not.toBeInTheDocument();
-  expect(screen.getByRole('status')).toHaveTextContent('Your session has ended.');
+test('switching actor sends the selected identity independently of the assignee', async () => {
+  let sent: Record<string, unknown> | undefined;
+  mockFetch((path, init) => {
+    if (path === '/api/members') return Response.json({ members: sampleMembers });
+    if (init?.method === 'POST') { sent = JSON.parse(init.body as string); return Response.json({ task: sampleTask }, { status: 201 }); }
+    return Response.json({ tasks: [sampleTask] });
+  });
+  openWorkspace();
+  await screen.findByText('Prepare invoice');
+  fireEvent.change(screen.getByRole('combobox', { name: 'Acting as' }), { target: { value: '1' } });
+  fireEvent.click(screen.getByRole('button', { name: 'New task' }));
+  expect(screen.getByText('This task creation will be recorded as John Doe.')).toBeVisible();
+  fireEvent.change(screen.getByLabelText('Task title'), { target: { value: 'Team invoice' } });
+  await screen.findByRole('option', { name: 'Unassigned' });
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Create task' })).toBeEnabled());
+  fireEvent.change(screen.getByLabelText('Assignee'), { target: { value: '2' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Create task' }));
+  await waitFor(() => expect(sent).toMatchObject({ title: 'Team invoice', actorId: 1, assigneeId: 2 }));
 });
 
-test('signing out clears the workspace and redirects', async () => {
-  globalThis.fetch = (async (path: unknown) => String(path).endsWith('/logout') ? new Response(null, { status: 204 }) : Response.json(String(path).endsWith('/me') ? { user } : { tasks: [] })) as typeof fetch;
-  render(<MemoryRouter initialEntries={['/tasks']}><App /></MemoryRouter>);
-  fireEvent.click(await screen.findByRole('button', { name: 'Sign out' }));
-  await waitFor(() => expect(screen.queryByText('john@example.com')).not.toBeInTheDocument());
-  expect(await screen.findByRole('heading', { name: 'Sign in to shiftmark' })).toBeVisible();
+test('actor selection survives navigation and remains available with the sidebar closed', async () => {
+  mockFetch((path) => Response.json(path === '/api/members' ? { members: sampleMembers } : { tasks: [] }));
+  openWorkspace();
+  fireEvent.change(await screen.findByRole('combobox', { name: 'Acting as' }), { target: { value: '1' } });
+  fireEvent.click(screen.getByRole('link', { name: 'Deleted tasks' }));
+  await screen.findByRole('heading', { name: 'Deleted tasks' });
+  fireEvent.click(screen.getByRole('button', { name: 'Hide sidebar' }));
+  expect(screen.getByRole('combobox', { name: 'Acting as' })).toHaveValue('1');
 });
 
-test('an auth check started before logout cannot restore the previous user', async () => {
-  let checks = 0;
-  let finish: (response: Response) => void = () => {};
-  const pending = new Promise<Response>((resolve) => { finish = resolve; });
-  globalThis.fetch = (async (path: unknown) => {
-    if (String(path).endsWith('/logout')) return new Response(null, { status: 204 });
-    if (String(path).endsWith('/me')) return ++checks === 1 ? Response.json({ user }) : pending;
-    return Response.json({ tasks: [] });
-  }) as typeof fetch;
-  render(<MemoryRouter initialEntries={['/tasks']}><App /></MemoryRouter>);
-  await screen.findByText('john@example.com');
-  fireEvent(window, new Event('focus'));
-  fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
-  await screen.findByRole('heading', { name: 'Sign in to shiftmark' });
-  await act(async () => { finish(Response.json({ user })); });
-  expect(screen.queryByText('john@example.com')).not.toBeInTheDocument();
-  expect(screen.getByRole('heading', { name: 'Sign in to shiftmark' })).toBeVisible();
+test('actor loading can be retried before allowing changes', async () => {
+  let failed = true;
+  mockFetch((path) => failed ? new Response(null, { status: 500 }) : Response.json(path === '/api/members' ? { members: sampleMembers } : { tasks: [] }));
+  openWorkspace();
+  expect(await screen.findByRole('alert')).toHaveTextContent('Could not load actors.');
+  expect(screen.queryByRole('button', { name: 'New task' })).toBeNull();
+  failed = false;
+  fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+  expect(await screen.findByRole('combobox', { name: 'Acting as' })).toBeVisible();
 });

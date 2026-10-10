@@ -2,9 +2,10 @@ import { expect, test } from 'bun:test';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { AppShell } from './AppShell';
+import { sampleMembers } from '../../test/fixtures';
 
 test('sidebar toggle announces its state and can reopen while preserving the task view', () => {
-  render(<MemoryRouter><AppShell user={{ id: 1, name: 'John Doe', email: 'john@example.com' }} onSignedOut={() => {}}><h1>Team tasks</h1></AppShell></MemoryRouter>);
+  render(<MemoryRouter><AppShell members={sampleMembers} actor={sampleMembers[0]!} onActorChange={() => {}}><h1>Team tasks</h1></AppShell></MemoryRouter>);
   const toggle = screen.getByRole('button', { name: 'Hide sidebar' });
   expect(toggle).toHaveAttribute('aria-expanded', 'true');
   expect(document.getElementById(toggle.getAttribute('aria-controls')!)).toHaveClass('sidebar');

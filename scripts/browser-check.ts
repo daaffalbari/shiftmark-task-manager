@@ -1,5 +1,4 @@
 import { strict as assert } from 'node:assert';
-import { randomBytes } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { mkdtemp, mkdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -11,10 +10,9 @@ import { seedDemoUsers } from '../server/src/db/seed';
 
 const directory = await mkdtemp(join(tmpdir(), 'shiftmark-browser-'));
 const databasePath = join(directory, 'test.sqlite');
-const password = randomBytes(24).toString('hex');
 const { db, sqlite } = openDatabase(databasePath);
 migrateDatabase(db);
-await seedDemoUsers(db, password);
+seedDemoUsers(db);
 sqlite.close();
 const output = resolve('.browser-checks');
 await mkdir(output, { recursive: true });
@@ -23,7 +21,7 @@ let exited = false;
 let stopping = false;
 const dev = spawn(process.execPath, ['run', 'dev'], {
   cwd: resolve('.'), detached: true, stdio: ['ignore', 'pipe', 'pipe'],
-  env: { ...process.env, DB_FILE_NAME: databasePath, DEMO_PASSWORD: password, NODE_ENV: 'development', APP_ORIGIN: origin, PORT: '13000', WEB_PORT: '15173' },
+  env: { ...process.env, DB_FILE_NAME: databasePath, NODE_ENV: 'development', APP_ORIGIN: origin, PORT: '13000', WEB_PORT: '15173' },
 });
 dev.stdout.on('data', (chunk) => { if (!stopping) process.stdout.write(chunk); });
 dev.stderr.on('data', (chunk) => { if (!stopping) process.stderr.write(chunk); });
@@ -35,17 +33,17 @@ async function ready() {
   for (let attempt = 0; attempt < 100; attempt++) {
     if (exited) throw new Error('Development server exited before becoming ready.');
     try {
-      const [web, api] = await Promise.all([fetch(origin, { signal: AbortSignal.timeout(1000) }), fetch(origin + '/api/auth/me', { signal: AbortSignal.timeout(1000) })]);
-      if (web.ok && api.status === 401) return;
+      const [web, api] = await Promise.all([fetch(origin, { signal: AbortSignal.timeout(1000) }), fetch(origin + '/api/members', { signal: AbortSignal.timeout(1000) })]);
+      if (web.ok && api.ok) return;
     } catch {}
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   throw new Error('Development server did not become ready; check ports 13000 and 15173.');
 }
-async function login(page: Page, email: string) {
-  await page.getByLabel('Email', { exact: true }).fill(email);
-  await page.getByLabel('Password', { exact: true }).fill(password);
-  await page.getByLabel('Password', { exact: true }).press('Enter');
+async function chooseActor(page: Page, name: string) {
+  const selector = page.getByRole('combobox', { name: 'Acting as', exact: true });
+  await selector.waitFor();
+  await selector.selectOption({ label: name });
   await page.getByRole('heading', { name: 'Team tasks', exact: true }).waitFor();
 }
 async function noOverflow(page: Page) {
@@ -68,14 +66,10 @@ try {
     const title = 'Prepare invoice ' + width;
     const revised = 'Approved invoice ' + width;
     await john.goto(origin + '/tasks');
-    await john.getByRole('heading', { name: 'Sign in to shiftmark' }).waitFor();
+    await chooseActor(john, 'John Doe');
     await noOverflow(john);
-    await john.screenshot({ path: join(output, 'team-login-' + width + '.png'), fullPage: true });
-    await john.getByLabel('Email', { exact: true }).fill('john@example.com');
-    await john.getByLabel('Password', { exact: true }).fill('incorrect-password');
-    await john.getByLabel('Password', { exact: true }).press('Enter');
-    await visible(john, 'Invalid email or password.');
-    await login(john, 'john@example.com');
+    assert.equal(await john.getByLabel('Password', { exact: true }).count(), 0, 'The assessment workspace must open without login');
+    await john.screenshot({ path: join(output, 'actor-workspace-' + width + '.png'), fullPage: true });
     if (width === 1440) {
       const sidebar = john.locator('.sidebar');
       const main = john.getByRole('main');
@@ -101,11 +95,6 @@ try {
       assert.equal(await john.getByRole('button', { name: 'Hide sidebar', exact: true }).getAttribute('aria-expanded'), 'true');
       await john.screenshot({ path: join(output, 'sidebar-open-' + width + '.png'), fullPage: true });
     }
-    if (width === 390) {
-      await john.getByRole('button', { name: 'Account', exact: true }).click();
-      await visible(john, 'john@example.com');
-      await john.getByRole('button', { name: 'Account', exact: true }).click();
-    }
     const newButton = john.locator('header').getByRole('button', { name: 'New task', exact: true });
     await newButton.click();
     assert(await john.getByLabel('Task title').evaluate((element) => element === document.activeElement));
@@ -114,7 +103,7 @@ try {
     await newButton.click();
     await john.getByLabel('Task title').fill(title);
     await john.getByLabel('Description', { exact: true }).fill('Check draft totals');
-    await john.getByRole('option', { name: 'John Doe', exact: true }).waitFor({ state: 'attached' });
+    await john.getByLabel('Assignee', { exact: true }).getByRole('option', { name: 'John Doe', exact: true }).waitFor({ state: 'attached' });
     await john.getByLabel('Assignee', { exact: true }).selectOption({ label: 'John Doe' });
     await noOverflow(john);
     await john.screenshot({ path: join(output, 'team-create-' + width + '.png'), fullPage: true });
@@ -122,8 +111,7 @@ try {
     await john.getByRole('button', { name: 'View details for ' + title, exact: true }).waitFor();
 
     await jane.goto(origin + '/tasks');
-    await jane.getByRole('heading', { name: 'Sign in to shiftmark' }).waitFor();
-    await login(jane, 'jane@example.com');
+    await chooseActor(jane, 'Jane Doe');
     const janeOpener = jane.getByRole('button', { name: 'View details for ' + title, exact: true });
     await janeOpener.waitFor();
     await janeOpener.click();
@@ -133,7 +121,7 @@ try {
     await jane.getByRole('button', { name: 'Edit details', exact: true }).click();
     await jane.getByLabel('Task title').fill(revised);
     await jane.getByLabel('Description', { exact: true }).fill('Approved totals');
-    await jane.getByRole('option', { name: 'Jane Doe', exact: true }).waitFor({ state: 'attached' });
+    await jane.getByLabel('Assignee', { exact: true }).getByRole('option', { name: 'Jane Doe', exact: true }).waitFor({ state: 'attached' });
     await jane.getByLabel('Assignee', { exact: true }).selectOption({ label: 'Jane Doe' });
     await jane.screenshot({ path: join(output, 'team-edit-' + width + '.png'), fullPage: true });
     await jane.getByRole('button', { name: 'Save changes', exact: true }).click();
@@ -143,7 +131,7 @@ try {
     assert((await activity.textContent())?.includes('BeforeCheck draft totalsAfterApproved totals'));
     assert((await activity.textContent())?.includes('BeforeJohn DoeAfterJane Doe'));
 
-    // A second real session sees the edit and cannot overwrite it from a stale form.
+    // A second workspace sees the edit and cannot overwrite it from a stale form.
     await john.getByRole('button', { name: 'Refresh', exact: true }).click();
     const johnOpener = john.getByRole('button', { name: 'View details for ' + revised, exact: true });
     await johnOpener.waitFor();
@@ -159,7 +147,7 @@ try {
     await johnOpener.click();
     await john.getByRole('list', { name: 'Task activity' }).waitFor();
     await john.getByRole('button', { name: 'Edit details', exact: true }).click();
-    await john.getByRole('option', { name: 'Jane Doe', exact: true }).waitFor({ state: 'attached' });
+    await john.getByLabel('Assignee', { exact: true }).getByRole('option', { name: 'Jane Doe', exact: true }).waitFor({ state: 'attached' });
     await john.getByLabel('Task title').fill('John unsaved draft');
     await jane.getByRole('button', { name: 'Move to Pending', exact: true }).click();
     await jane.getByRole('button', { name: 'Move to In progress', exact: true }).waitFor();
@@ -217,18 +205,17 @@ try {
     await john.screenshot({ path: join(output, 'team-deleted-' + width + '.png'), fullPage: true });
     await noOverflow(john);
 
-    // Expiry must remove the task and its shared history from the signed-out UI.
-    const state = openDatabase(databasePath);
-    state.sqlite.run('UPDATE sessions SET expires_at = 0'); state.sqlite.close();
-    await john.evaluate(() => window.dispatchEvent(new Event('focus')));
-    await john.getByRole('heading', { name: 'Sign in to shiftmark' }).waitFor();
-    assert.equal(await john.getByRole('list', { name: 'Task activity' }).count(), 0);
-    await visible(john, 'Your session has ended. Please sign in again.');
-    await login(john, 'john@example.com');
-    await john.getByRole('button', { name: 'Sign out', exact: true }).click();
-    await john.getByRole('heading', { name: 'Sign in to shiftmark' }).waitFor();
+    await john.keyboard.press('Escape');
+    await john.getByRole('link', { name: 'Team tasks', exact: true }).click();
+    await chooseActor(john, 'Jane Doe');
+    await john.getByRole('link', { name: 'Deleted tasks', exact: true }).click();
+    assert.equal(await john.getByRole('combobox', { name: 'Acting as', exact: true }).inputValue(), '2', 'Actor selection must survive navigation');
+    await johnOpener.click();
+    await johnActivity.waitFor();
+    assert.equal(await johnActivity.getByRole('listitem').count(), 6, 'Switching actor must not change recorded history');
+    assert((await johnActivity.textContent())?.includes('John Doe created this task.'));
     await johnContext.close(); await janeContext.close();
-    console.log('PASS ' + width + 'px: sidebar, shared access, assignment, before/after edits, stale draft, workflow, deletion history, expiry, keyboard and overflow');
+    console.log('PASS ' + width + 'px: sidebar, shared access, assignment, before/after edits, stale draft, workflow, deletion history, actor switching, keyboard and overflow');
   }
   assert.deepEqual(errors, [], 'Browser must not raise JavaScript errors');
   console.log('Screenshots: ' + output);

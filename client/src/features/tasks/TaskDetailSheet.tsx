@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, ArrowRight, Pencil, RefreshCw, Trash2, X } from 'lucide-react';
-import { taskStatuses, type ApiTask, type ApiAuditLog } from '@shiftmark/contracts';
+import { taskStatuses, type ApiTask, type ApiAuditLog, type ApiMember } from '@shiftmark/contracts';
 import { ApiRequestError } from '../../api/http';
 import { useDialog } from '../../components/useDialog';
 import { changeStatus, deleteTask, getAuditLogs, getTask } from './tasks.api';
@@ -10,8 +10,8 @@ import { DeleteTaskDialog } from './DeleteTaskDialog';
 import { TaskFormDialog } from './TaskFormDialog';
 import styles from './tasks.module.css';
 
-export function TaskDetailSheet({ task, onClose, onTaskUpdated, readOnly, onDeleted }: {
-  task: ApiTask | null; onClose: () => void; onTaskUpdated: (task: ApiTask) => void; readOnly: boolean; onDeleted?: () => void;
+export function TaskDetailSheet({ task, actor, onClose, onTaskUpdated, readOnly, onDeleted }: {
+  task: ApiTask | null; actor: ApiMember; onClose: () => void; onTaskUpdated: (task: ApiTask) => void; readOnly: boolean; onDeleted?: () => void;
 }) {
   const close = useRef<HTMLButtonElement>(null);
   const dialog = useDialog(!!task, close);
@@ -52,7 +52,7 @@ export function TaskDetailSheet({ task, onClose, onTaskUpdated, readOnly, onDele
     if (busy || !current || !next || locked) return;
     setBusy(true); setError(''); setNotice('');
     try {
-      const result = await changeStatus(current.id, next);
+      const result = await changeStatus(current.id, next, actor.id);
       await refresh();
       setNotice(result.changed ? 'Status updated.' : 'Status is already up to date.');
     } catch (error) {
@@ -77,6 +77,7 @@ export function TaskDetailSheet({ task, onClose, onTaskUpdated, readOnly, onDele
       <section className={styles.statusSection} aria-label="Current status">
         <div className={styles.sectionHeading}><h3>Current status</h3><span>Step {index + 1} of 4</span></div>
         <StatusChip status={current.status} />
+        {!locked && next && <p className={styles.help}>Status changes will be recorded as {actor.name}.</p>}
         <ol className={styles.workflow} aria-label="Task workflow">{taskStatuses.map((status, i) => <li key={status} aria-current={i === index ? 'step' : undefined} className={i <= index ? styles.reached : ''}><span>{i < index ? <Check aria-hidden="true" /> : i + 1}</span><p>{statusLabels[status]}</p></li>)}</ol>
         {!locked && next ? <button className={'primary ' + styles.transitionButton} disabled={busy} onClick={advance}>{busy ? 'Updating…' : next === 'done' ? 'Mark as Done' : 'Move to ' + statusLabels[next]}<ArrowRight aria-hidden="true" /></button> : !locked && <p className={styles.complete}><Check aria-hidden="true" />This task is complete.</p>}
         {notice && <p role="status" className={styles.feedback}>{notice}</p>}
@@ -87,5 +88,5 @@ export function TaskDetailSheet({ task, onClose, onTaskUpdated, readOnly, onDele
       </section>
       <footer className={styles.sheetFooter}>{current.deletedAt ? <p>Deleted on <time dateTime={current.deletedAt}>{formatTimestamp(current.deletedAt)}</time>. Full activity history is preserved.</p> : !locked && <button className="danger-text" disabled={busy} onClick={() => setDeleting(true)}><Trash2 aria-hidden="true" />Delete task</button>}</footer>
     </>}
-  </dialog>{editing && current && <TaskFormDialog open task={current} onClose={() => { setEditing(false); setRetry((value) => value + 1); }} onSaved={(updated, changed) => { setCurrent(updated); onTaskUpdated(updated); setNotice(changed ? 'Task details updated.' : 'No changes to save.'); }} />}{deleting && <DeleteTaskDialog task={current} onCancel={() => setDeleting(false)} onConfirm={async () => { await deleteTask(current!.id); onDeleted ? onDeleted() : onClose(); }} />}</>;
+  </dialog>{editing && current && <TaskFormDialog open task={current} actor={actor} onClose={() => { setEditing(false); setRetry((value) => value + 1); }} onSaved={(updated, changed) => { setCurrent(updated); onTaskUpdated(updated); setNotice(changed ? 'Task details updated.' : 'No changes to save.'); }} />}{deleting && <DeleteTaskDialog task={current} actor={actor} onCancel={() => setDeleting(false)} onConfirm={async () => { await deleteTask(current!.id, actor.id); onDeleted ? onDeleted() : onClose(); }} />}</>;
 }

@@ -9,7 +9,7 @@ afterEach(() => { globalThis.fetch = originalFetch; });
 test('invalid titles and oversized descriptions cannot be submitted', async () => {
   let submitted = false;
   mockFetch(() => Response.json({ members: sampleMembers }));
-  render(<TaskFormDialog open onClose={() => {}} onSaved={() => { submitted = true; }} />);
+  render(<TaskFormDialog actor={sampleMembers[0]!} open onClose={() => {}} onSaved={() => { submitted = true; }} />);
   await screen.findByRole('option', { name: 'Jane Doe' });
   const input = screen.getByLabelText('Task title');
   for (const title of ['  ', 'x'.repeat(121)]) {
@@ -27,7 +27,7 @@ test('invalid titles and oversized descriptions cannot be submitted', async () =
 test('failed member loading is retryable and retains the draft', async () => {
   let failed = true;
   mockFetch(() => failed ? Response.json({ error: { code: 'ERROR', message: 'Unavailable' } }, { status: 500 }) : Response.json({ members: sampleMembers }));
-  render(<TaskFormDialog open onClose={() => {}} onSaved={() => {}} />);
+  render(<TaskFormDialog actor={sampleMembers[0]!} open onClose={() => {}} onSaved={() => {}} />);
   fireEvent.change(screen.getByLabelText('Task title'), { target: { value: 'My draft' } });
   expect(await screen.findByRole('alert')).toHaveTextContent('Could not load team members.');
   expect(screen.getByRole('button', { name: 'Create task' })).toBeDisabled();
@@ -46,7 +46,7 @@ test('creates a trimmed task with description and a real team assignee', async (
     sent = JSON.parse(init!.body as string);
     return Response.json({ task: sampleTask }, { status: 201 });
   });
-  render(<TaskFormDialog open onClose={() => {}} onSaved={() => { saved = true; }} />);
+  render(<TaskFormDialog actor={sampleMembers[0]!} open onClose={() => {}} onSaved={() => { saved = true; }} />);
   expect(document.activeElement).toBe(screen.getByLabelText('Task title'));
   fireEvent.change(screen.getByLabelText('Task title'), { target: { value: '  Prepare invoice  ' } });
   fireEvent.change(screen.getByLabelText('Description'), { target: { value: '  Check totals  ' } });
@@ -54,7 +54,7 @@ test('creates a trimmed task with description and a real team assignee', async (
   fireEvent.change(screen.getByLabelText('Assignee'), { target: { value: '2' } });
   fireEvent.click(screen.getByRole('button', { name: 'Create task' }));
   await waitFor(() => expect(saved).toBe(true));
-  expect(sent).toEqual({ title: 'Prepare invoice', description: 'Check totals', assigneeId: 2 });
+  expect(sent).toEqual({ title: 'Prepare invoice', description: 'Check totals', assigneeId: 2, actorId: 2 });
 });
 
 test('failed edits retain all draft fields and the original task version', async () => {
@@ -64,7 +64,7 @@ test('failed edits retain all draft fields and the original task version', async
     sent = JSON.parse(init!.body as string);
     return Response.json({ error: { code: 'ERROR', message: 'Unavailable' } }, { status: 500 });
   });
-  render(<TaskFormDialog open task={sampleTask} onClose={() => {}} onSaved={() => {}} />);
+  render(<TaskFormDialog actor={sampleMembers[0]!} open task={sampleTask} onClose={() => {}} onSaved={() => {}} />);
   await screen.findByRole('option', { name: 'Jane Doe' });
   fireEvent.change(screen.getByLabelText('Task title'), { target: { value: 'Revised draft' } });
   fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'New details' } });
@@ -74,7 +74,7 @@ test('failed edits retain all draft fields and the original task version', async
   expect(screen.getByLabelText('Task title')).toHaveValue('Revised draft');
   expect(screen.getByLabelText('Description')).toHaveValue('New details');
   expect(screen.getByLabelText('Assignee')).toHaveValue('');
-  expect(sent).toEqual({ title: 'Revised draft', description: 'New details', assigneeId: null, version: sampleTask.version });
+  expect(sent).toEqual({ title: 'Revised draft', description: 'New details', assigneeId: null, actorId: 2, version: sampleTask.version });
 });
 
 test('stale edits keep the draft until the user explicitly reloads the latest task', async () => {
@@ -84,7 +84,7 @@ test('stale edits keep the draft until the user explicitly reloads the latest ta
     if (init?.method === 'PATCH') return Response.json({ error: { code: 'TASK_CHANGED', message: 'Stale' } }, { status: 409 });
     return Response.json({ task: latest });
   });
-  render(<TaskFormDialog open task={sampleTask} onClose={() => {}} onSaved={() => {}} />);
+  render(<TaskFormDialog actor={sampleMembers[0]!} open task={sampleTask} onClose={() => {}} onSaved={() => {}} />);
   await screen.findByRole('option', { name: 'Jane Doe' });
   fireEvent.change(screen.getByLabelText('Task title'), { target: { value: 'My unsaved draft' } });
   fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));

@@ -9,7 +9,7 @@ afterEach(() => { globalThis.fetch = originalFetch; });
 
 test('opens from the list with four stages and only the next valid action', async () => {
   mockFetch((path) => Response.json(path.includes('audit-logs') ? { logs: [] } : path === '/api/tasks/104' ? { task: sampleTask } : { tasks: [sampleTask] }));
-  render(<MyTasksPage />);
+  render(<MyTasksPage actor={sampleMembers[0]!} />);
   fireEvent.click(await screen.findByRole('button', { name: 'View details for Prepare invoice' }));
   const sheet = await screen.findByRole('dialog');
   expect(within(sheet).getByRole('heading', { name: 'Prepare invoice' })).toBeVisible();
@@ -35,7 +35,7 @@ test('editing from details refreshes the shared row and the before/after activit
     if (path.includes('audit-logs')) return Response.json({ logs: edited ? [{ ...sampleLog, actorId: 2, actorName: 'Jane Doe', event: { type: 'updated', changes: [{ field: 'title', from: sampleTask.title, to: current.title }] } }] : [] });
     return Response.json(path === '/api/tasks/104' ? { task: current } : { tasks: [current] });
   });
-  render(<MyTasksPage />);
+  render(<MyTasksPage actor={sampleMembers[0]!} />);
   fireEvent.click(await screen.findByRole('button', { name: 'View details for Prepare invoice' }));
   await screen.findByText('No recorded activity.');
   fireEvent.click(screen.getByRole('button', { name: 'Edit details' }));
@@ -51,7 +51,7 @@ test('editing from details refreshes the shared row and the before/after activit
 
 test('completed tasks have no next-step action', async () => {
   mockFetch((path) => Response.json(path.includes('audit-logs') ? { logs: [] } : { task: { ...sampleTask, status: 'done' } }));
-  render(<TaskDetailSheet task={{ ...sampleTask, status: 'done' }} readOnly={false} onClose={() => {}} onTaskUpdated={() => {}} />);
+  render(<TaskDetailSheet actor={sampleMembers[0]!} task={{ ...sampleTask, status: 'done' }} readOnly={false} onClose={() => {}} onTaskUpdated={() => {}} />);
   expect(screen.getByText('This task is complete.')).toBeVisible();
   expect(screen.queryByRole('button', { name: /Move to|Mark as/ })).toBeNull();
   await screen.findByText('No recorded activity.');
@@ -60,7 +60,7 @@ test('completed tasks have no next-step action', async () => {
 test('refreshing a teammate’s changes also updates the list behind the sheet', async () => {
   let latest = sampleTask;
   mockFetch((path) => Response.json(path.includes('audit-logs') ? { logs: [] } : path === '/api/tasks/104' ? { task: latest } : { tasks: [latest] }));
-  render(<MyTasksPage />);
+  render(<MyTasksPage actor={sampleMembers[0]!} />);
   fireEvent.click(await screen.findByRole('button', { name: 'View details for Prepare invoice' }));
   await screen.findByText('No recorded activity.');
   latest = { ...sampleTask, status: 'done', version: 3, updatedBy: { id: 2, name: 'Jane Doe' } };
@@ -77,12 +77,12 @@ test('status mutation refreshes server task and audit; busy actions cannot submi
   let finish: () => void = () => {};
   const gate = new Promise<void>((resolve) => { finish = resolve; });
   mockFetch(async (path, init) => {
-    if (init?.method === 'PATCH') { patches++; await gate; return Response.json({ task: { ...sampleTask, status: 'in_progress' }, changed: true }); }
+    if (init?.method === 'PATCH') { expect(JSON.parse(init.body as string)).toEqual({ status: 'in_progress', actorId: 2 }); patches++; await gate; return Response.json({ task: { ...sampleTask, status: 'in_progress' }, changed: true }); }
     if (path.includes('audit-logs')) { reads++; return Response.json({ logs: patches ? [sampleLog] : [] }); }
     return Response.json({ task: { ...sampleTask, status: patches ? 'in_progress' : 'pending' } });
   });
   let updated = '';
-  render(<TaskDetailSheet task={sampleTask} readOnly={false} onClose={() => {}} onTaskUpdated={(task) => { updated = task.status; }} />);
+  render(<TaskDetailSheet actor={sampleMembers[0]!} task={sampleTask} readOnly={false} onClose={() => {}} onTaskUpdated={(task) => { updated = task.status; }} />);
   const button = screen.getByRole('button', { name: 'Move to In progress' });
   fireEvent.click(button); fireEvent.click(button);
   expect(patches).toBe(1);
@@ -98,7 +98,7 @@ test('409 refreshes server truth with non-destructive feedback', async () => {
     if (init?.method === 'PATCH') return Response.json({ error: { code: 'INVALID_TRANSITION', message: 'Stale' } }, { status: 409 });
     return Response.json(path.includes('audit-logs') ? { logs: [sampleLog] } : { task: { ...sampleTask, status: 'done' } });
   });
-  render(<TaskDetailSheet task={sampleTask} readOnly={false} onClose={() => {}} onTaskUpdated={() => {}} />);
+  render(<TaskDetailSheet actor={sampleMembers[0]!} task={sampleTask} readOnly={false} onClose={() => {}} onTaskUpdated={() => {}} />);
   fireEvent.click(screen.getByRole('button', { name: 'Move to In progress' }));
   expect(await screen.findByText('This task is complete.')).toBeVisible();
   expect(screen.getByRole('status')).toHaveTextContent('Status changed elsewhere.');
@@ -107,10 +107,10 @@ test('409 refreshes server truth with non-destructive feedback', async () => {
 test('delete requires confirmation, cancel retains task, confirm removes the active row', async () => {
   let deleted = false;
   mockFetch((path, init) => {
-    if (init?.method === 'DELETE') { deleted = true; return new Response(null, { status: 204 }); }
+    if (init?.method === 'DELETE') { expect(JSON.parse(init.body as string)).toEqual({ actorId: 2 }); deleted = true; return new Response(null, { status: 204 }); }
     return Response.json(path.includes('audit-logs') ? { logs: [sampleLog] } : path === '/api/tasks/104' ? { task: sampleTask } : { tasks: deleted ? [] : [sampleTask] });
   });
-  render(<MyTasksPage />);
+  render(<MyTasksPage actor={sampleMembers[0]!} />);
   fireEvent.click(await screen.findByRole('button', { name: 'View details for Prepare invoice' }));
   fireEvent.click(screen.getByRole('button', { name: 'Delete task' }));
   let confirm = screen.getByRole('dialog', { name: 'Delete “Prepare invoice”?' });

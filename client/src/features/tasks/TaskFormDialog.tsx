@@ -5,7 +5,7 @@ import { useDialog } from '../../components/useDialog';
 import { createTask, editTask, getTask, listMembers } from './tasks.api';
 import styles from './tasks.module.css';
 
-export function TaskFormDialog({ open, task, onClose, onSaved }: { open: boolean; task?: ApiTask; onClose: () => void; onSaved: (task: ApiTask, changed: boolean) => void }) {
+export function TaskFormDialog({ open, task, actor, onClose, onSaved }: { open: boolean; task?: ApiTask; actor: ApiMember; onClose: () => void; onSaved: (task: ApiTask, changed: boolean) => void }) {
   const input = useRef<HTMLInputElement>(null);
   const dialog = useDialog(open, input);
   const [title, setTitle] = useState('');
@@ -34,7 +34,7 @@ export function TaskFormDialog({ open, task, onClose, onSaved }: { open: boolean
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (busy || stale || !members) return;
-    const parsed = createTaskSchema.safeParse({ title, description, assigneeId });
+    const parsed = createTaskSchema.safeParse({ title, description, assigneeId, actorId: actor.id });
     if (!parsed.success) { setError(parsed.error.issues[0]?.path[0] === 'description' ? 'Keep the description within 2,000 characters.' : 'Enter a title between 1 and 120 characters.'); return; }
     setBusy(true); setError('');
     try {
@@ -60,7 +60,7 @@ export function TaskFormDialog({ open, task, onClose, onSaved }: { open: boolean
   }
   return <dialog ref={dialog} className={styles.createDialog} aria-labelledby={prefix + '-title'} onCancel={(event) => { event.preventDefault(); if (!busy) onClose(); }}>
     <h2 id={prefix + '-title'}>{task ? 'Edit task' : 'New task'}</h2>
-    <p className={styles.dialogIntro}>{task ? 'Changes are recorded with your name and time.' : 'Create a task for the team. Choose who will take it forward.'}</p>
+    <p className={styles.dialogIntro}>This {task ? 'edit' : 'task creation'} will be recorded as {actor.name}.</p>
     <form onSubmit={submit} noValidate>
       <label htmlFor={prefix + '-task-title'}>Task title</label>
       <input ref={input} id={prefix + '-task-title'} required maxLength={120} disabled={busy} value={title} onChange={(event) => setTitle(event.target.value)} />

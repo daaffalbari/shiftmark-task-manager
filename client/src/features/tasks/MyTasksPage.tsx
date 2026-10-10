@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ListChecks, Plus, RefreshCw } from 'lucide-react';
-import type { ApiTask, TaskStatus, TaskView } from '@shiftmark/contracts';
+import type { ApiMember, ApiTask, TaskStatus, TaskView } from '@shiftmark/contracts';
 import { listTasks } from './tasks.api';
 import { StatusFilters } from './StatusFilters';
 import { TaskList } from './TaskList';
@@ -8,7 +8,7 @@ import { TaskFormDialog } from './TaskFormDialog';
 import { TaskDetailSheet } from './TaskDetailSheet';
 import styles from './tasks.module.css';
 
-export function MyTasksPage({ view = 'active' }: { view?: TaskView }) {
+export function MyTasksPage({ view = 'active', actor }: { view?: TaskView; actor: ApiMember }) {
   const deleted = view === 'deleted';
   const [tasks, setTasks] = useState<ApiTask[]>([]);
   const [filter, setFilter] = useState<TaskStatus | 'all'>('all');
@@ -41,7 +41,7 @@ export function MyTasksPage({ view = 'active' }: { view?: TaskView }) {
       tasks.length === 0 ? <div className={styles.empty}><ListChecks aria-hidden="true" /><h3>{deleted ? 'No deleted tasks.' : 'No team tasks yet.'}</h3><p>{deleted ? 'Deleted tasks and their history will appear here.' : 'Create a task and assign the next step to a teammate.'}</p>{!deleted && <button onClick={() => setCreating(true)}><Plus aria-hidden="true" />New task</button>}</div> :
       shown.length === 0 ? <div className={styles.empty}><h3>No tasks in this status.</h3><button onClick={() => setFilter('all')}>Clear filter</button></div> :
       <TaskList tasks={shown} onOpenTask={setSelected} />}
-    {!deleted && creating && <TaskFormDialog open onClose={() => setCreating(false)} onSaved={() => { setFilter('all'); setAttempt((value) => value + 1); setAnnouncement('Task created for the team.'); }} />}
-    {selected && <TaskDetailSheet task={selected} readOnly={deleted} onClose={() => { setSelected(null); setAttempt((value) => value + 1); }} onTaskUpdated={(task) => { setSelected(task); setAttempt((value) => value + 1); }} onDeleted={() => { setSelected(null); setAttempt((value) => value + 1); setAnnouncement('Task deleted. Its history is preserved in Deleted tasks.'); }} />}
+    {!deleted && creating && <TaskFormDialog open actor={actor} onClose={() => setCreating(false)} onSaved={() => { setFilter('all'); setAttempt((value) => value + 1); setAnnouncement('Task created for the team.'); }} />}
+    {selected && <TaskDetailSheet task={selected} actor={actor} readOnly={deleted} onClose={() => { setSelected(null); setAttempt((value) => value + 1); }} onTaskUpdated={(task) => { setSelected(task); setAttempt((value) => value + 1); }} onDeleted={() => { setSelected(null); setAttempt((value) => value + 1); setAnnouncement('Task deleted. Its history is preserved in Deleted tasks.'); }} />}
   </section>;
 }

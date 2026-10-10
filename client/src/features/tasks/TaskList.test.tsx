@@ -2,7 +2,7 @@ import { afterEach, expect, test } from 'bun:test';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { TaskList } from './TaskList';
 import { MyTasksPage } from './MyTasksPage';
-import { sampleTask, mockFetch } from '../../../test/fixtures';
+import { sampleTask, sampleMembers, mockFetch } from '../../../test/fixtures';
 import { formatTimestamp } from './status';
 
 const originalFetch = globalThis.fetch;
@@ -24,7 +24,7 @@ test('task row exposes title, ID, labeled status, timestamp and working details'
 
 test('filters derive counts from data and distinguish filtered-empty from all-empty', async () => {
   mockFetch(() => Response.json({ tasks: [sampleTask, { ...sampleTask, id: 105, title: 'Review rules', status: 'to_do' }] }));
-  render(<MyTasksPage />);
+  render(<MyTasksPage actor={sampleMembers[0]!} />);
   expect(await screen.findByText('Prepare invoice')).toBeVisible();
   const filters = screen.getByRole('group', { name: 'Filter by status' });
   expect(within(filters).getByRole('button', { name: 'All 2' })).toBeVisible();
@@ -39,7 +39,7 @@ test('filters derive counts from data and distinguish filtered-empty from all-em
 
 test('empty list and failed request provide useful next actions', async () => {
   mockFetch(() => Response.json({ error: { code: 'ERROR', message: 'Unavailable' } }, { status: 500 }));
-  render(<MyTasksPage />);
+  render(<MyTasksPage actor={sampleMembers[0]!} />);
   expect(await screen.findByRole('alert')).toHaveTextContent('Could not load tasks.');
   mockFetch(() => Response.json({ tasks: [] }));
   fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
@@ -49,7 +49,7 @@ test('empty list and failed request provide useful next actions', async () => {
 test('refresh and returning to the window load a teammate’s latest changes', async () => {
   let title = 'Original task';
   mockFetch(() => Response.json({ tasks: [{ ...sampleTask, title }] }));
-  render(<MyTasksPage />);
+  render(<MyTasksPage actor={sampleMembers[0]!} />);
   await screen.findByText('Original task');
   title = 'Updated by Jane';
   fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));

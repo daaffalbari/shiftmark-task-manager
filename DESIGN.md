@@ -1,24 +1,24 @@
 # shiftmark — Internal Team Task Manager
 ## Product & UI Design Specification
 
-**Status:** Implemented shared-team revision
+**Status:** Implemented shared-team revision with predefined actors
 **Date:** 2026-10-11
 **Audience:** Full-stack engineer / code-generation agent  
-**Companion plan:** [TEAM-WORKSPACE-PLAN.md](TEAM-WORKSPACE-PLAN.md). This revision supersedes the personal ownership boundary in the original mini-task-manager plan.
+**Companion plan:** [TEAM-WORKSPACE-PLAN.md](TEAM-WORKSPACE-PLAN.md). This revision supersedes the personal ownership and session-actor assumptions in the original mini-task-manager plan.
 
 > **One-line brief:** A shared internal team workspace that clearly shows responsibility, current status, and who changed what, when.
 
 ## 1. Product boundary
 
-shiftmark is a small authenticated workspace for one internal team. Every signed-in member can view and change shared tasks. Creator, assignee, and change actor are distinct identities. John can create a task, Jane can update it, and both can understand the complete recorded history.
+shiftmark is a small shared workspace for one internal team. It opens without login and uses a predefined-user dropdown to identify who is making changes. Creator, assignee, and change actor are distinct identities. John can create a task, Jane can update it, and both can understand the complete recorded history.
 
-**In scope:** real session login/logout; shared active/deleted task lists; task creation; title/description/assignee editing; sequential status updates; immutable creation/edit/status/deletion events; responsive UI and clear request states.
+**In scope:** predefined actor selection; shared active/deleted task lists; task creation; title/description/assignee editing; sequential status updates; immutable creation/edit/status/deletion events; responsive UI and clear request states.
 
-**Out of scope:** sign-up, roles, invitations, multiple organizations, due dates, priorities, comments, attachments, notifications, charts, kanban drag-and-drop, global activity feed, dark mode.
+**Out of scope:** login, sign-up, roles, invitations, multiple organizations, due dates, priorities, comments, attachments, notifications, charts, kanban drag-and-drop, global activity feed, dark mode.
 
 **Non-negotiable product rules:**
-- All task and member endpoints require a valid session. Every authenticated member has equal access to all team tasks.
-- The server obtains creator and change actor from the session. Assignee is optional and must reference a real team member.
+- Task and member reads require no login. Every mutation requires a selected actor from the predefined member directory; the server rejects missing, malformed, or unknown actor IDs.
+- Creator is the selected actor at creation; subsequent changes record the actor selected for that request. Assignee is optional and validated separately. Switching actor alone never changes existing tasks or history.
 - Titles are trimmed and 1–120 characters; descriptions are trimmed and at most 2,000 characters.
 - `to_do → pending → in_progress → done`, one step at a time. Done is terminal for status changes.
 - Repeating the current status or saving identical fields changes neither task metadata nor history.
@@ -59,7 +59,7 @@ Research reviewed on **2026-10-10**. References are inspiration, not reusable li
 5. **shiftmarkability is visual, not hidden.** The detail panel includes the current state, the next valid action, and a chronological activity timeline.
 6. **No fake UI.** Every visible navigation item, count, button and timestamp must be functional and driven by real API data.
 
-**App name:** `shiftmark`. Use the supplied `assets/logo.svg` in the login and workspace header, and `assets/logo-icon.svg` as the favicon. Preserve the artwork and its colors.
+**App name:** `shiftmark`. Use the supplied `assets/logo.svg` in the workspace header, and `assets/logo-icon.svg` as the favicon. Preserve the artwork and its colors.
 
 **Copy language:** English throughout the interface; short, explicit, unambiguous. E.g. `Team tasks`, `New task`, `View history`, `Move to In progress`, `Deleted tasks`.
 
@@ -145,7 +145,7 @@ Only two substantive application destinations:
 1. **Team tasks** (`/tasks`): shared active tasks, status filters, Refresh, and create action.
 2. **Deleted tasks** (`/tasks?view=deleted`): read-only soft-deleted tasks with accessible history.
 
-Plus **Sign in** (`/login`) and the bottom-of-sidebar **account/logout** control. The signed-in identity is visible as name + email (not an editable profile page).
+An **Acting as** dropdown above the task page contains the predefined members John Doe and Jane Doe. The current selection remains visible when the sidebar is closed and survives navigation between active and deleted tasks. It records declared identity rather than authenticating the person.
 
 No `Dashboard`, `Analytics`, `Team`, `Calendar`, `Settings`, or disabled placeholder links.
 
@@ -153,7 +153,8 @@ No `Dashboard`, `Analytics`, `Team`, `Calendar`, `Settings`, or disabled placeho
 
 ### 7.1 Desktop workspace (≥ 1024px)
 
-- Fixed **208px sidebar** with `shiftmark` wordmark (top), `Team tasks` and `Deleted tasks` nav entries, account/logout (bottom).
+- Fixed **208px sidebar** with `shiftmark` wordmark and `Team tasks` / `Deleted tasks` navigation. A keyboard-accessible button hides it and a top-left button reopens it.
+- An **Acting as** dropdown remains above the main content in both sidebar states, with helper text explaining its use for change attribution.
 - Main background `--color-canvas`; max content width **1100px**, content padding 40px.
 - Header: small eyebrow `INTERNAL TEAM`; prominent `Team tasks`; one-line supporting count; single primary `+ New task` button right aligned.
 - Status filter strip: `All`, `To do`, `Pending`, `In progress`, `Done`, each with a real count. Counts are derived from active team tasks, not mock metrics.
@@ -176,15 +177,15 @@ The list keeps task, responsibility, current status, and last editor aligned in 
 
 **Audit timeline:** vertical hairline and dot markers, oldest first. Preserve multiline field values and wrap long content. Use local absolute times with `Intl.DateTimeFormat`; preserve ISO UTC timestamps in the API.
 
-### 7.3 Login (`/login`)
+### 7.3 Actor selection
 
-Centered max-width **400px** form on off-white canvas. Small brand at top; heading `Sign in to shiftmark`; `Email`, `Password`, password reveal affordance, one full-width `Sign in` button. No social login, signup, illustration or promotional second column. Generic error message `Invalid email or password.` with no disclosure of which field failed. Use proper autocomplete hints, keyboard submission and visible loading state.
+Open the task workspace directly. A labeled native **Acting as** dropdown uses the two predefined members returned by `/api/members`; initially select the first member in the directory. Display the selected name in create/edit/delete dialogs and beside status actions. Changing the actor affects subsequent mutation requests and never rewrites history. Loading failures offer Retry before allowing changes. There is no login form, password, or account/logout menu.
 
 ### 7.4 Create and edit task
 
 Use a native modal `<dialog>` (max-width **420px**) with required Task title, optional Description, and an Assignee selector populated from the member API. Include Unassigned. New tasks start at To do; status is changed through the dedicated sequential action.
 
-Create uses Cancel / Create task. Edit uses Cancel / Save changes. Focus title on opening and restore focus on close. Failed requests retain every draft field. Member loading has a retry action and prevents saving until the directory is available.
+Every mutation sends the selected actor ID. Create uses Cancel / Create task. Edit uses Cancel / Save changes. Focus title on opening and restore focus on close. Failed requests retain every draft field. Member loading has a retry action and prevents saving until the directory is available.
 
 On `409 TASK_CHANGED`, explain that a teammate changed the task and that the draft is retained. Disable saving and offer Reload latest, explicitly explaining that it replaces the draft. Reload adopts the current version. A deleted task cannot be saved. On success, refresh task, list, and activity from the server.
 
@@ -194,7 +195,7 @@ A separate confirmation dialog: `Delete “Prepare invoice”?` and text `The ta
 
 ### 7.6 Mobile (< 768px), tablet (768–1023px)
 
-- On mobile, replace sidebar with simple top brand + account menu and two visible navigation tabs `Team tasks` / `Deleted tasks`. Keep `New task` visible near page heading.
+- On mobile, replace sidebar with simple top brand and two visible navigation tabs `Team tasks` / `Deleted tasks`. Keep `New task` visible near page heading.
 - Filters scroll horizontally in one row and retain readable labels. No hidden filter-only icon.
 - Task rows stack title/creator, assignee/status, and last editor/timestamp, with a clearly labeled details control.
 - Detail sheet becomes a **full-height modal** with its own scrollable content and sticky title/close header; can be dismissed by visible close button and `Esc`.
@@ -205,9 +206,8 @@ A separate confirmation dialog: `Delete “Prepare invoice”?` and text `The ta
 
 | Event/state | User-visible behavior |
 |---|---|
-| Initial auth check | Small loading state. Never show another user's cached tasks while checking `/api/auth/me`. |
-| Signed-out or expired session | Clear private task state; redirect to `/login`; say `Your session has ended. Please sign in again.` |
-| Login rejected | Generic field-area error; password remains masked. |
+| Initial actor loading | Show a small loading state while fetching `/api/members`. |
+| Actor loading failed or empty directory | Explain the problem and offer Retry before allowing changes. |
 | Tasks loading | A brief `Loading tasks…` state or 3 quiet placeholder rows; no random skeleton grid. |
 | No tasks at all | `No team tasks yet.` / `Create a task and assign the next step to a teammate.` with a real `New task` action. |
 | Filter with zero matches | `No tasks in this status.` with `Clear filter`; never reuse the all-empty state. |
@@ -224,24 +224,21 @@ A separate confirmation dialog: `Delete “Prepare invoice”?` and text `The ta
 
 ## 9. Backend-facing UI contract
 
-JSON timestamps are ISO 8601 UTC strings; the browser displays local absolute times. API base path `/api`, proxied by Vite during development. Authentication uses an HttpOnly session cookie.
+JSON timestamps are ISO 8601 UTC strings; the browser displays local absolute times. API base path `/api`, proxied by Vite during development. Every mutation includes the selected `actorId`; the server validates it against the predefined member directory.
 
 | Method | Path | Response / note |
 |---|---|---|
-| POST | `/api/auth/login` | `{email,password}` → `{user}`, sets session cookie |
-| GET | `/api/auth/me` | `{user}` or 401 |
-| POST | `/api/auth/logout` | 204, invalidates session |
 | GET | `/api/members` | `{members: ApiMember[]}`, IDs and names for assignment |
 | GET | `/api/tasks?view=active` | Shared active tasks, latest updated first |
 | GET | `/api/tasks?view=deleted` | Shared deleted tasks, latest deleted first |
 | GET | `/api/tasks/:id` | `{task}`, including a deleted task |
-| POST | `/api/tasks` | `{title,description?,assigneeId?}` → 201 `{task}` |
-| PATCH | `/api/tasks/:id` | `{title,description,assigneeId,version}` → `{task,changed}` |
-| PATCH | `/api/tasks/:id/status` | `{status}` → `{task,changed}` |
+| POST | `/api/tasks` | `{title,description?,assigneeId?,actorId}` → 201 `{task}` |
+| PATCH | `/api/tasks/:id` | `{title,description,assigneeId,version,actorId}` → `{task,changed}` |
+| PATCH | `/api/tasks/:id/status` | `{status,actorId}` → `{task,changed}` |
 | GET | `/api/tasks/:id/audit-logs` | `{logs}`, chronological by timestamp then ID |
-| DELETE | `/api/tasks/:id` | 204, soft delete and append deletion event |
+| DELETE | `/api/tasks/:id` | `{actorId}` → 204, soft delete and append deletion event |
 
-All endpoints require a session. Task-specific endpoints return 404 for a missing task; mutations also return 404 for a deleted task. Validation is 400, missing authentication 401, invalid origin 403, invalid transition or stale edit 409. Error envelope: `{error:{code,message}}`. Strict payloads reject supplied actor/creator IDs.
+Task-specific endpoints return 404 for a missing task; mutations also return 404 for a deleted task. Validation and unknown actors return 400, invalid origin 403, invalid transition or stale edit 409. Error envelope: `{error:{code,message}}`. Strict payloads require an actor ID and reject supplied creator/owner fields.
 
 Canonical DTOs and schemas live in [shared/src/contracts.ts](shared/src/contracts.ts). `ApiTask` includes description, version, createdBy, assignee, updatedBy, status, and timestamps. `ApiAuditLog.event` is a discriminated creation/field-edit/status-change/deletion event. Assignment changes retain member IDs and names in before/after snapshots.
 
@@ -252,12 +249,12 @@ Canonical DTOs and schemas live in [shared/src/contracts.ts](shared/src/contract
 - [ ] All four statuses have **both a readable label and their prescribed colors**.
 - [ ] A task detail shows real current status, permitted next action and **chronological** activity history without navigation to another page.
 - [ ] Completed and deleted tasks never show invalid status actions.
-- [ ] Empty, error, saving and session-expired states are understandable without developer tools.
+- [ ] Empty, error, saving and actor-loading states are understandable without developer tools.
 - [ ] Keyboard navigation, visible focus, dialog close/focus return, text contrast and reduced-motion preference are checked.
 - [ ] No false data, nonfunctional sidebar links, vanity KPI widgets or decorative dashboard filler.
 - [ ] John creates a task, Jane edits/reassigns/advances/deletes it, and John sees the same task and exact recorded changes.
 - [ ] A stale edit preserves its draft and cannot overwrite a teammate.
-- [ ] Screens only expose features backed by the documented API; actor is the signed-in user.
+- [ ] Screens only expose features backed by the documented API; actor is the selected predefined user and is separate from the assignee.
 
 ## 11. Implementation aesthetic guardrails
 
