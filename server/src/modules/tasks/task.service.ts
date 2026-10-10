@@ -46,14 +46,19 @@ function getAssignee(db: ReadDb, id: number | null): ApiMember | null {
   return member;
 }
 
+function requireActor(db: ReadDb, id: number): void {
+  if (!db.select({ id: users.id }).from(users).where(eq(users.id, id)).get()) throw new ApiFailure(400, 'INVALID_ACTOR', 'Choose a predefined team member as the actor.');
+}
+
 export function listTeamTasks(db: Db, view: TaskView): ApiTask[] {
   return taskQuery(db).where(view === 'deleted' ? isNotNull(tasks.deletedAt) : isNull(tasks.deletedAt))
     .orderBy(desc(view === 'deleted' ? tasks.deletedAt : tasks.updatedAt), desc(tasks.id)).all()
     .map((row) => toApiTask(row.task, row.createdBy, row.assignee, row.updatedBy));
 }
 
-export function createTeamTask(db: Db, actorId: number, input: CreateTaskInput, now: Date): ApiTask {
+export function createTeamTask(db: Db, actorId: number, input: Omit<CreateTaskInput, 'actorId'>, now: Date): ApiTask {
   return db.transaction((tx) => {
+    requireActor(tx, actorId);
     const assignee = getAssignee(tx, input.assigneeId);
     const task = tx.insert(tasks).values({ ...input, creatorId: actorId, updatedById: actorId, createdAt: now, updatedAt: now }).returning().get();
     tx.insert(auditLogs).values({ taskId: task.id, actorId, event: { type: 'created', title: task.title, description: task.description, assignee }, createdAt: now }).run();
@@ -61,8 +66,9 @@ export function createTeamTask(db: Db, actorId: number, input: CreateTaskInput, 
   }, { behavior: 'immediate' });
 }
 
-export function editTeamTask(db: Db, actorId: number, taskId: number, input: EditTaskInput, now: Date) {
+export function editTeamTask(db: Db, actorId: number, taskId: number, input: Omit<EditTaskInput, 'actorId'>, now: Date) {
   return db.transaction((tx) => {
+    requireActor(tx, actorId);
     const task = activeTask(tx, taskId);
     if (task.version !== input.version) throw new ApiFailure(409, 'TASK_CHANGED', 'This task changed since you opened it. Reload before saving.');
     const assignee = getAssignee(tx, input.assigneeId);
@@ -80,6 +86,7 @@ export function editTeamTask(db: Db, actorId: number, taskId: number, input: Edi
 
 export function changeTeamTaskStatus(db: Db, actorId: number, taskId: number, requested: TaskStatus, now: Date) {
   return db.transaction((tx) => {
+    requireActor(tx, actorId);
     const task = activeTask(tx, taskId);
     const transition = evaluateTransition(task.status, requested);
     if (transition === 'invalid') throw new ApiFailure(409, 'INVALID_TRANSITION', 'Tasks must move forward one step at a time.');
@@ -92,6 +99,7 @@ export function changeTeamTaskStatus(db: Db, actorId: number, taskId: number, re
 
 export function softDeleteTeamTask(db: Db, actorId: number, taskId: number, now: Date): void {
   db.transaction((tx) => {
+    requireActor(tx, actorId);
     const task = activeTask(tx, taskId);
     tx.update(tasks).set({ deletedAt: now, updatedAt: now, updatedById: actorId, version: task.version + 1 }).where(eq(tasks.id, taskId)).run();
     tx.insert(auditLogs).values({ taskId, actorId, event: { type: 'deleted', title: task.title }, createdAt: now }).run();

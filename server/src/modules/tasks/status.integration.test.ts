@@ -6,11 +6,11 @@ let f: Awaited<ReturnType<typeof createFixture>>;
 let id: number;
 beforeEach(async () => {
   f = await createFixture();
-  const result = await f.request.post('/api/tasks').set('Origin', f.origin).set('Cookie', f.john).send({ title: 'Invoice' });
+  const result = await f.request.post('/api/tasks').set('Origin', f.origin).send({ title: 'Invoice', actorId: f.john });
   id = result.body.task.id;
 });
 afterEach(() => f.sqlite.close());
-const patch = (status: string, cookie?: string) => f.request.patch('/api/tasks/' + id + '/status').set('Origin', f.origin).set('Cookie', cookie ?? f.john).send({ status });
+const patch = (status: string, actorId = f.john) => f.request.patch('/api/tasks/' + id + '/status').set('Origin', f.origin).send({ status, actorId });
 
 test('adjacent changes are logged once; same status preserves timestamp and history', async () => {
   const first = await patch('pending', f.jane);
@@ -25,11 +25,11 @@ test('adjacent changes are logged once; same status preserves timestamp and hist
   expect(first.body.task.updatedBy.id).toBe(2);
 });
 
-test('skips, backwards moves, unknown statuses, forged actors and missing tasks are rejected', async () => {
+test('skips, backwards moves, unknown statuses, unknown actors and missing tasks are rejected', async () => {
   expect((await patch('done')).status).toBe(409);
   expect((await patch('unknown')).status).toBe(400);
-  expect((await f.request.patch('/api/tasks/999/status').set('Origin', f.origin).set('Cookie', f.jane).send({ status: 'pending' })).status).toBe(404);
-  expect((await f.request.patch('/api/tasks/' + id + '/status').set('Origin', f.origin).set('Cookie', f.jane).send({ status: 'pending', actorId: 1 })).status).toBe(400);
+  expect((await f.request.patch('/api/tasks/999/status').set('Origin', f.origin).send({ status: 'pending', actorId: f.jane })).status).toBe(404);
+  expect((await f.request.patch('/api/tasks/' + id + '/status').set('Origin', f.origin).send({ status: 'pending', actorId: 999 })).status).toBe(400);
   await patch('pending');
   expect((await patch('to_do')).status).toBe(409);
   expect((await patch('done')).body.error.code).toBe('INVALID_TRANSITION');

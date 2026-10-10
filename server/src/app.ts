@@ -3,11 +3,10 @@ import { ZodError } from 'zod';
 import type { Db } from './db/client';
 import { ApiFailure } from './domain/api-error';
 import { requireOrigin } from './middleware/require-origin';
-import { authRoutes } from './modules/auth/auth.routes';
 import { taskRoutes } from './modules/tasks/task.routes';
 import { memberRoutes } from './modules/team/member.routes';
 
-export interface AppContext { db: Db; origin: string; secureCookies: boolean; now: () => Date }
+export interface AppContext { db: Db; origin: string; now: () => Date }
 
 export function createApp(ctx: AppContext) {
   const app = express();
@@ -15,7 +14,6 @@ export function createApp(ctx: AppContext) {
   app.use('/api', (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
   app.use(requireOrigin(ctx.origin));
   app.use(express.json({ limit: '16kb' }));
-  app.use('/api/auth', authRoutes(ctx));
   app.use('/api/tasks', taskRoutes(ctx));
   app.use('/api/members', memberRoutes(ctx));
   app.use((_req, _res, next) => next(new ApiFailure(404, 'NOT_FOUND', 'Route not found.')));

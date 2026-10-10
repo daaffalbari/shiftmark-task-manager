@@ -7,17 +7,17 @@ const taskFields = {
   description: z.string().trim().max(2000),
   assigneeId: z.number().int().positive().max(Number.MAX_SAFE_INTEGER).nullable(),
 };
-export const createTaskSchema = z.object({ ...taskFields, description: taskFields.description.default(''), assigneeId: taskFields.assigneeId.default(null) }).strict();
-export const editTaskSchema = z.object({ ...taskFields, version: z.number().int().positive().max(Number.MAX_SAFE_INTEGER) }).strict();
-export const changeStatusSchema = z.object({ status: taskStatusSchema }).strict();
-export const loginSchema = z.object({ email: z.email().trim().toLowerCase(), password: z.string().min(1) }).strict();
+const actorIdSchema = z.number().int().positive().max(Number.MAX_SAFE_INTEGER);
+export const createTaskSchema = z.object({ ...taskFields, actorId: actorIdSchema, description: taskFields.description.default(''), assigneeId: taskFields.assigneeId.default(null) }).strict();
+export const editTaskSchema = z.object({ ...taskFields, actorId: actorIdSchema, version: z.number().int().positive().max(Number.MAX_SAFE_INTEGER) }).strict();
+export const changeStatusSchema = z.object({ status: taskStatusSchema, actorId: actorIdSchema }).strict();
+export const deleteTaskSchema = z.object({ actorId: actorIdSchema }).strict();
 export const taskViewSchema = z.enum(['active', 'deleted']);
 export type TaskStatus = z.infer<typeof taskStatusSchema>;
 export type TaskView = z.infer<typeof taskViewSchema>;
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 export type EditTaskInput = z.infer<typeof editTaskSchema>;
 export interface ApiMember { id: number; name: string }
-export interface ApiUser { id: number; name: string; email: string }
 export interface ApiTask {
   id: number; title: string; description: string; status: TaskStatus; version: number;
   createdBy: ApiMember; assignee: ApiMember | null; updatedBy: ApiMember;
